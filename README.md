@@ -13,3 +13,8 @@ To clone the repository issue the following commands:
    cd vm_api
    nano vm_api.c
    make
+
+Development
+===========
+There also is a Windows version (C#) available, created by Segs. 
+Please take a look at: https://github.com/IPTV-/VCAS
