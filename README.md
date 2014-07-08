@@ -10,10 +10,10 @@ at http://github.com/spdfrk1/vm_api
 
 To clone the repository issue the following commands:
 
-   git clone git://github.com/spdfrk1/vm_api.git
-   cd vm_api
-   nano vm_api.c
-   make
+	$ git clone git://github.com/spdfrk1/vm_api.git
+	$ cd vm_api
+	$ nano vm_api.c
+	$ make
    
 
 Windows
