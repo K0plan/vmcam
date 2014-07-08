@@ -2,6 +2,7 @@ Configuration
 ===========
 Before compiling please add your personal parameters in vm_api.c
 
+
 Development
 ===========
 The development is done using git. vm_api repository is hosted
@@ -13,8 +14,10 @@ To clone the repository issue the following commands:
    cd vm_api
    nano vm_api.c
    make
+   
 
-Development
+Windows
 ===========
 There also is a Windows version (C#) available, created by Segs. 
+
 Please take a look at: https://github.com/IPTV-/VCAS
