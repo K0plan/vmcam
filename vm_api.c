@@ -95,6 +95,8 @@ void load_MAC() {
 
 	unsigned char *mac;
 
+	clientMAC = calloc(13, 1);
+
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 
 	ifr.ifr_addr.sa_family = AF_INET;
@@ -458,6 +460,10 @@ int main(void) {
 	}
 	if (timestamp) {
 		free(timestamp);
+	}
+	
+	if(clientMAC) {
+		free(clientMAC);
 	}
 
 	return EXIT_SUCCESS;
