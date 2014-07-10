@@ -43,7 +43,7 @@
 // Static data for now
 char * api_clientID;
 const char * api_company = "";			 			// Your company
-const char * api_msgformat = "1154"; 				// Only 1154 is supported for now
+const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
 
 char * iface = "eth0";								// Your iface name
 char * clientMAC;
@@ -307,7 +307,7 @@ int API_GetSessionKey() {
 			api_msgformat, api_clientID, api_company, clientMAC);
 
 	ssl_client_send(msg, msglen, response_buffer, 64, serverAddress,
-			VCAS_Port_SSL);
+	VCAS_Port_SSL);
 
 	int t;
 	for (t = 0; t < 16; t++) {
@@ -354,7 +354,7 @@ int API_GetCertificate() {
 
 	/******* Send the request *******/
 	response_len = ssl_client_send(msg, msglen, response_buffer, 1024,
-			serverAddress, VCAS_Port_SSL);
+	serverAddress, VCAS_Port_SSL);
 
 	if (response_len < 12) {
 		free(response_buffer);
@@ -378,7 +378,7 @@ int API_GetAllChannelKeys() {
 	uchar msg[512];
 	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
 	uchar * keyblock;
-	int msglen;
+	int msglen, plainlen;
 	int retlen;
 	RC4_KEY rc4key;
 	FILE * fp;
@@ -388,6 +388,8 @@ int API_GetAllChannelKeys() {
 		return -1;
 	}
 
+	plainlen = strlen(api_company) + 39;
+
 	generate_signed_hash(&signedhash);
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~GetAllChannelKeys~%s~%s~%s~%s~ ~ ~", api_msgformat,
@@ -396,10 +398,10 @@ int API_GetAllChannelKeys() {
 
 	printf("Requesting master keys: %s\n", msg);
 	RC4_set_key(&rc4key, 16, session_key);
-	RC4(&rc4key, msglen - 49, msg + 49, msg + 49);
+	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-			serverAddress, (VKS_Port_SSL + 1));
+	serverAddress, (VKS_Port_SSL + 1));
 	if (retlen < 10) {
 		printf("GetAllChannelKeys failed\n");
 		free(response_buffer);
@@ -408,9 +410,9 @@ int API_GetAllChannelKeys() {
 
 	keyblock = response_buffer + 4;
 	retlen -= 4;
-	
+
 	printf("GetAllChannelKeys completed, size: %d\n", retlen);
-	
+
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, retlen, keyblock, keyblock);
 
@@ -461,8 +463,8 @@ int main(void) {
 	if (timestamp) {
 		free(timestamp);
 	}
-	
-	if(clientMAC) {
+
+	if (clientMAC) {
 		free(clientMAC);
 	}
 
