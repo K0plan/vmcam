@@ -20,8 +20,8 @@
 #endif
 
 #define RETURN_NULL(x) if ((x)==NULL) exit (1)
-#define RETURN_ERR(err,s) if ((err)==-1) { perror(s); return(-1); }
-#define RETURN_TCP(err) if ((err)==-1) { printf("%d", err); return(-1);
+#define RETURN_ERR(err,s) if ((err)==-1) { printf("[tcp-client] %s\n", s); return(-1); }
+#define RETURN_TCP(err) if ((err)==-1) { printf("[tcp-client] error: %d\n", err); return(-1);
 
 int tcp_client_send(unsigned char *msg, uint16_t msglen,
 		unsigned char*buf_received, int responsebuflen, const char *s_ipaddr,
@@ -60,7 +60,7 @@ int tcp_client_send(unsigned char *msg, uint16_t msglen,
 	if (err < 0)
 		RETURN_ERR(err, "ERROR reading from socket");
 
-	printf("Received %d\n", received);
+	printf("[tcp-client] Received %d\n", received);
 
 	/* Terminate communication on a socket */
 	err = close(sock);
