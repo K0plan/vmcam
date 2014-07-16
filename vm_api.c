@@ -307,7 +307,6 @@ int generate_ski_string() {
 int API_GetSessionKey() {
 	uchar response_buffer[64];
 	uchar msg[128];
-	int t;
 	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
 			api_msgformat, api_clientID, api_company, clientMAC);
 			
@@ -321,7 +320,6 @@ int API_GetSessionKey() {
 	timestamp = calloc(20, 1);
 	memcpy(session_key, response_buffer + 4, 16);
 	memcpy(timestamp, response_buffer + 20, 20);
-	free(response_buffer);
 	printf("Session key obtained, timestamp: %s\n", timestamp);
 	return 0;
 }
@@ -475,7 +473,7 @@ retry:
 	// Get the Master Keys
 	if(API_GetAllChannelKeys() < 0) {
 		printf("GetAllChannelKeys failed\n");
-		if(retry < 1){
+		if(retry_count < 1){
 			retry_count += 1;
 			printf("Will cleanup and retry. Retry count: %d\n", retry_count);
 			res = remove(f_signedcert);
@@ -500,8 +498,8 @@ cleanup:
 		free(timestamp);
 	}
 
-	if (clientID) {
-		free(clientID);
+	if (api_clientID) {
+		free(api_clientID);
 	}
 	
 	if (clientMAC) {
