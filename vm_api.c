@@ -473,13 +473,14 @@ retry:
 	// Get the Master Keys
 	if(API_GetAllChannelKeys() < 0) {
 		printf("GetAllChannelKeys failed\n");
-		if(retry_count < 1){
+		if(retry_count < 2){
 			retry_count += 1;
-			printf("Will cleanup and retry. Retry count: %d\n", retry_count);
+			printf("Will cleanup and retry in 5 seconds... Retry count: %d\n", retry_count);
 			res = remove(f_signedcert);
 			res += remove(f_rsa_private_key);
 			res += remove(f_csr);
 			if(res == 0) {
+				delay(5000);
 				goto retry;
 			} else {
 				printf("Unable to remove files, please remove manually");
