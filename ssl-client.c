@@ -24,8 +24,8 @@
 #include <openssl/err.h>
 
 #define RETURN_NULL(x) if ((x)==NULL) exit (1)
-#define RETURN_ERR(err,s) if ((err)==-1) { perror(s); return(-1); }
-#define RETURN_SSL(err) if ((err)==-1) { printf("%d", err); return(-1); }
+#define RETURN_ERR(err,s) if ((err)==-1) { printf("[ssl-client] %s\n", s); return(-1); }
+#define RETURN_SSL(err) if ((err)==-1) { printf("[ssl-client] error: %d\n", err); return(-1); }
 
 //static int verify_callback(int ok, X509_STORE_CTX *ctx);
 
