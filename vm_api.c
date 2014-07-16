@@ -36,17 +36,17 @@
 #define uchar unsigned char
 #define GETKEYS_BUFFSIZE (1024 * 100)
 
-#define serverAddress "1.1.1.1"						// Your vm server IP,  only IP supported for now
-#define VCAS_Port_SSL 0								// Your VCAS port
-#define VKS_Port_SSL 0								// Your VKS port
+// Connection data
+#define serverAddress "1.1.1.1"			// Your vm server IP,  only IP supported for now
+#define VCAS_Port_SSL 0				// Your VCAS port
+#define VKS_Port_SSL 0				// Your VKS port
 
-// Static data for now
-char * api_clientID;
-const char * api_company = "";			 			// Your company
+// Used interface
+char * iface = "eth0";				// Your iface name, only used to obtain your MAC
+
+// API data
+const char * api_company = "";			// Your company
 const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
-
-char * iface = "eth0";								// Your iface name
-char * clientMAC;
 
 // Cert data
 const char * szCountry = "US";
@@ -56,10 +56,16 @@ const char * szOrganization = "PCPlayer";
 const char * szCommon = "STB";
 char * szEmail;
 
+// Client data
+char * api_clientID;
+char * clientMAC;
+
+// Session data
 uchar * session_key;
 uchar * timestamp;
 char * ski;
 
+// Files used
 char * f_signedcert = "SignedCert.der";
 char * f_csr = "csr.pem";
 char * f_rsa_private_key = "priv_key.pem";
@@ -299,27 +305,24 @@ int generate_ski_string() {
 }
 
 int API_GetSessionKey() {
-	uchar * response_buffer = calloc(64, 1);
+	uchar response_buffer[64];
 	uchar msg[128];
-	session_key = calloc(16, 1);
-	timestamp = calloc(20, 1);
+	int t;
 	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
 			api_msgformat, api_clientID, api_company, clientMAC);
+			
+	printf("[API] Requesting Session Key: %s\n", msg);
 
-	ssl_client_send(msg, msglen, response_buffer, 64, serverAddress,
-	VCAS_Port_SSL);
-
-	int t;
-	for (t = 0; t < 16; t++) {
-		session_key[t] = response_buffer[t + 4];
-		if (session_key[t] == 0)
-			return -1;
+	if(ssl_client_send(msg, msglen, response_buffer, 64, serverAddress,
+	VCAS_Port_SSL) < 45) {
+		return -1;
 	}
-	for (t = 0; t < 20; t++) {
-		timestamp[t] = response_buffer[t + 20];
-	}
+	session_key = calloc(16, 1);
+	timestamp = calloc(20, 1);
+	memcpy(session_key, response_buffer + 4, 16);
+	memcpy(timestamp, response_buffer + 20, 20);
 	free(response_buffer);
-	printf("Session key obtained, timestamp: %s", timestamp);
+	printf("Session key obtained, timestamp: %s\n", timestamp);
 	return 0;
 }
 
@@ -352,6 +355,8 @@ int API_GetCertificate() {
 	fwrite(msg, 1, msglen, fp);
 	fclose(fp);
 
+	printf("[API] Requesting Certificate: %s\n", msg);
+
 	/******* Send the request *******/
 	response_len = ssl_client_send(msg, msglen, response_buffer, 1024,
 	serverAddress, VCAS_Port_SSL);
@@ -379,12 +384,12 @@ int API_GetAllChannelKeys() {
 	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
 	uchar * keyblock;
 	int msglen, plainlen;
-	int retlen;
+	int retlen, chan_count;
 	RC4_KEY rc4key;
 	FILE * fp;
 
 	if (response_buffer == NULL) {
-		printf("Unable to allocate memory");
+		printf("[API] GetAllChannelKeys failed, unable to allocate memory");
 		return -1;
 	}
 
@@ -396,22 +401,30 @@ int API_GetAllChannelKeys() {
 			api_company, timestamp, clientMAC, api_clientID, api_company, ski,
 			signedhash, clientMAC);
 
-	printf("Requesting master keys: %s\n", msg);
+	printf("[API] Requesting master keys: %s\n", msg);
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
 	serverAddress, (VKS_Port_SSL + 1));
 	if (retlen < 10) {
-		printf("GetAllChannelKeys failed\n");
 		free(response_buffer);
 		return -1;
 	}
 
 	keyblock = response_buffer + 4;
 	retlen -= 4;
+	
+	chan_count = (keyblock[3] << 24) + (keyblock[2] << 16) + (keyblock[1] << 8)
+			+ keyblock[0];
+			
+	if(chan_count < 1) {
+			printf("[API] GetAllChannelKeys failed, no keys in block");
+			free(response_buffer);
+			return -1;
+	}
 
-	printf("GetAllChannelKeys completed, size: %d\n", retlen);
+	printf("[API] GetAllChannelKeys completed, size: %d, channels expected: %d\n", retlen, chan_count);
 
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, retlen, keyblock, keyblock);
@@ -422,41 +435,64 @@ int API_GetAllChannelKeys() {
 		fclose(fp);
 		free(response_buffer);
 		return 0;
+	} else {
+		printf("[API] GetAllChannelKeys failed, could not write keyblock");	
 	}
 	free(response_buffer);
 	return -1;
 }
 
 int main(void) {
+	int exit_code = EXIT_FAILURE;
+	char retry_count = 0, res;
 	// Get client ID and MAC
 	load_clientid();
 	load_MAC();
 
 	// Init SSL Client
 	ssl_client_init();
-
+retry:
 	// Get Session key from server
 	if (API_GetSessionKey() < 0) {
 		printf("GetSessionKey failed\n");
-		return EXIT_FAILURE;
+		goto cleanup;
 	}
 
 	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
-	printf("Get SKI\n");
 	if (generate_ski_string() < 0) {
 		if (API_GetCertificate()) {
 			printf("Unable to get Signed Certificate\n");
+			goto cleanup;
 		}
 		if (generate_ski_string() < 0) {
 			printf("Got a Signed Certificate but unable to get SKI\n");
+			goto cleanup;
 		}
 	}
 
 	printf("Using Subject Key Identifier: %s\n", ski);
 
 	// Get the Master Keys
-	API_GetAllChannelKeys();
-
+	if(API_GetAllChannelKeys() < 0) {
+		printf("GetAllChannelKeys failed\n");
+		if(retry < 1){
+			retry_count += 1;
+			printf("Will cleanup and retry. Retry count: %d\n", retry_count);
+			res = remove(f_signedcert);
+			res += remove(f_rsa_private_key);
+			res += remove(f_csr);
+			if(res == 0) {
+				goto retry;
+			} else {
+				printf("Unable to remove files, please remove manually");
+				goto cleanup;	
+			}
+		}
+		goto cleanup;
+	}
+	
+	exit_code = EXIT_SUCCESS;
+cleanup:
 	if (session_key) {
 		free(session_key);
 	}
@@ -464,10 +500,14 @@ int main(void) {
 		free(timestamp);
 	}
 
+	if (clientID) {
+		free(clientID);
+	}
+	
 	if (clientMAC) {
 		free(clientMAC);
 	}
-
-	return EXIT_SUCCESS;
+	
+	return exit_code;
 }
 
