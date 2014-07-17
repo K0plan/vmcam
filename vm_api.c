@@ -383,8 +383,7 @@ int API_GetAllChannelKeys() {
 	uchar msg[512];
 	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
 	uchar * keyblock;
-	int msglen, plainlen;
-	int retlen, chan_count;
+	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
 	FILE * fp;
 
@@ -415,16 +414,7 @@ int API_GetAllChannelKeys() {
 	keyblock = response_buffer + 4;
 	retlen -= 4;
 	
-	chan_count = (keyblock[3] << 24) + (keyblock[2] << 16) + (keyblock[1] << 8)
-			+ keyblock[0];
-			
-	if(chan_count < 1) {
-			printf("[API] GetAllChannelKeys failed, no keys in block");
-			free(response_buffer);
-			return -1;
-	}
-
-	printf("[API] GetAllChannelKeys completed, size: %d, channels expected: %d\n", retlen, chan_count);
+	printf("[API] GetAllChannelKeys completed, size: %d\n", retlen);
 
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, retlen, keyblock, keyblock);
@@ -489,9 +479,6 @@ retry:
 	if (generate_ski_string() < 0) {
 		if (API_GetCertificate() < 0) {
 			RETURN_ERR("Unable to get Signed Certificate");
-		} else {
-			// Give the server some time
-			usleep(500 * 1000);
 		}
 		if (generate_ski_string() < 0) {
 			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
@@ -499,6 +486,9 @@ retry:
 	}
 
 	printf("Using Subject Key Identifier: %s\n", ski);
+
+	// Give the server some time
+	sleep(1);
 
 	// Get the Master Keys
 	if(API_GetAllChannelKeys() < 0) {
