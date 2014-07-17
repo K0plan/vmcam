@@ -434,7 +434,7 @@ int API_GetAllChannelKeys() {
 
 int main(void) {
 	int exit_code = EXIT_FAILURE;
-	char retry_count = 0, res, t;
+	char retry_count = 0, res, t = 0;
 	// Get client ID and MAC
 	load_clientid();
 	load_MAC();
