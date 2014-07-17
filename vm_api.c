@@ -454,7 +454,7 @@ int main(void) {
 		RETURN_ERR("Check your port configuration!");	
 	}
 	
-	if(strlen(serverAddress) == 0 || strcmp(serverAddress, "1.1.1.1") != 0) {
+	if(strlen(serverAddress) == 0 || strcmp(serverAddress, "1.1.1.1") == 0) {
 		RETURN_ERR("Check your server IP!");
 	}
 
