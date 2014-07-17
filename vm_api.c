@@ -479,11 +479,11 @@ retry:
 		if (t > 2) {
 			RETURN_ERR("GetSessionKey failed");
 		}
-		sleep(1000);
+		sleep(1);
 		t++;
 	}
 	// Give the server some time
-	sleep(500);
+	usleep(500 * 1000);
 	
 	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
 	if (generate_ski_string() < 0) {
@@ -491,7 +491,7 @@ retry:
 			RETURN_ERR("Unable to get Signed Certificate");
 		} else {
 			// Give the server some time
-			sleep(500);
+			usleep(500 * 1000);
 		}
 		if (generate_ski_string() < 0) {
 			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
@@ -510,7 +510,7 @@ retry:
 			res += remove(f_rsa_private_key);
 			res += remove(f_csr);
 			if(res == 0) {
-				sleep(5000);
+				sleep(5);
 				goto retry;
 			} else {
 				RETURN_ERR("Unable to remove files, please remove manually");
