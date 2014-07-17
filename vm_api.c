@@ -36,6 +36,8 @@
 #define uchar unsigned char
 #define GETKEYS_BUFFSIZE (1024 * 100)
 
+#define RETURN_ERR(s) printf("[API] %s\n", s); goto cleanup;
+
 // Connection data
 #define serverAddress "1.1.1.1"			// Your vm server IP,  only IP supported for now
 #define VCAS_Port_SSL 0				// Your VCAS port
@@ -118,7 +120,7 @@ void load_MAC() {
 	sprintf(clientMAC, "%.2x%.2x%.2x%.2x%.2x%.2x", mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	clientMAC[12] = 0;
-	printf("Got MAC: %s\n", clientMAC);
+	printf("Detected MAC: %s for interface: %s\n", clientMAC, iface);
 	return;
 }
 
@@ -434,7 +436,7 @@ int API_GetAllChannelKeys() {
 		free(response_buffer);
 		return 0;
 	} else {
-		printf("[API] GetAllChannelKeys failed, could not write keyblock");	
+		printf("[API] GetAllChannelKeys failed, could not write keyblock\n");	
 	}
 	free(response_buffer);
 	return -1;
@@ -442,29 +444,57 @@ int API_GetAllChannelKeys() {
 
 int main(void) {
 	int exit_code = EXIT_FAILURE;
-	char retry_count = 0, res;
+	char retry_count = 0, res, t;
 	// Get client ID and MAC
 	load_clientid();
 	load_MAC();
+
+	// Some configuration checks
+	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {
+		RETURN_ERR("Check your port configuration!");	
+	}
+	
+	if(strlen(serverAddress) == 0 || strcmp(serverAddress, "1.1.1.1") != 0) {
+		RETURN_ERR("Check your server IP!");
+	}
+
+	if(strlen(api_clientID) != 56) {
+		remove(f_ClientId);
+		RETURN_ERR("Incorrect clientID length, length should be 56");	
+	}
+
+	if(strlen(clientMAC) != 12) {
+		RETURN_ERR("Incorrect MAC length, format should be: \"615243342516\"");
+	}
+	
+	if(strlen(api_company) == 0) {
+		RETURN_ERR("Please add your company name to the configuration");
+	}
 
 	// Init SSL Client
 	ssl_client_init();
 retry:
 	// Get Session key from server
-	if (API_GetSessionKey() < 0) {
-		printf("GetSessionKey failed\n");
-		goto cleanup;
+	while(API_GetSessionKey() != 0) {
+		if (t > 2) {
+			RETURN_ERR("GetSessionKey failed");
+		}
+		sleep(1000);
+		t++;
 	}
-
+	// Give the server some time
+	sleep(500);
+	
 	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
 	if (generate_ski_string() < 0) {
-		if (API_GetCertificate()) {
-			printf("Unable to get Signed Certificate\n");
-			goto cleanup;
+		if (API_GetCertificate() < 0) {
+			RETURN_ERR("Unable to get Signed Certificate");
+		} else {
+			// Give the server some time
+			sleep(500);
 		}
 		if (generate_ski_string() < 0) {
-			printf("Got a Signed Certificate but unable to get SKI\n");
-			goto cleanup;
+			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
 		}
 	}
 
@@ -480,11 +510,10 @@ retry:
 			res += remove(f_rsa_private_key);
 			res += remove(f_csr);
 			if(res == 0) {
-				delay(5000);
+				sleep(5000);
 				goto retry;
 			} else {
-				printf("Unable to remove files, please remove manually");
-				goto cleanup;	
+				RETURN_ERR("Unable to remove files, please remove manually");
 			}
 		}
 		goto cleanup;
