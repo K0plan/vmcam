@@ -39,15 +39,16 @@
 #define RETURN_ERR(s) printf("[API] %s\n", s); goto cleanup;
 
 // Connection data
-#define serverAddress "1.1.1.1"			// Your vm server IP,  only IP supported for now
-#define VCAS_Port_SSL 0				// Your VCAS port
-#define VKS_Port_SSL 0				// Your VKS port
+char vcasServerAddress[31];			// Your VCAS server address
+char vksServerAddress[31];			// Your VCAS server address
+int VCAS_Port_SSL;				// Your VCAS port
+int VKS_Port_SSL;				// Your VKS port
 
 // Used interface
 char * iface = "eth0";				// Your iface name, only used to obtain your MAC
 
 // API data
-const char * api_company = "";			// Your company
+char api_company[31];				// Your company
 const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
 
 // Cert data
@@ -73,6 +74,38 @@ char * f_csr = "csr.pem";
 char * f_rsa_private_key = "priv_key.pem";
 char * f_keyblock = "keyblock";
 char * f_ClientId = "clientid.dat";
+char * f_config = "vm_api.ini";
+
+int load_config() {
+	FILE * fp;
+	int scan;
+	
+	char key[31], value[31];
+	if ((fp = fopen(f_config, "r"))) {
+		while ((scan = fscanf(fp, "%30[^=\n]=%30s\n?", key, value)) != EOF) {
+			if (scan == 1) {
+				fseek(fp, 1, SEEK_CUR); //Skip EOL
+			} else {
+				if (strcasecmp(key, "COMPANY") == 0) {
+					strncpy(api_company, value, 30);
+				} else if (strcasecmp(key, "SERVERADDRESS") == 0) {
+					strncpy(vcasServerAddress, value, 30);
+				} else if (strcasecmp(key, "SERVERPORT") == 0) {
+					VCAS_Port_SSL = atoi(value);
+				} else if (strcasecmp(key, "PREFERRED_VKS") == 0) {
+					sscanf(value, "%30[^/]/%d", vksServerAddress, &VKS_Port_SSL);
+				}
+			}
+		}
+	} else {
+		RETURN_ERR("Unable to read vm_api.ini");
+	}
+	return -1;
+	
+cleanup:
+
+	return 0;
+}
 
 int load_clientid() {
 	int i, j = 0;
@@ -314,7 +347,7 @@ int API_GetSessionKey() {
 			
 	printf("[API] Requesting Session Key: %s\n", msg);
 
-	if(ssl_client_send(msg, msglen, response_buffer, 64, serverAddress,
+	if(ssl_client_send(msg, msglen, response_buffer, 64, vcasServerAddress,
 	VCAS_Port_SSL) < 45) {
 		return -1;
 	}
@@ -359,7 +392,7 @@ int API_GetCertificate() {
 
 	/******* Send the request *******/
 	response_len = ssl_client_send(msg, msglen, response_buffer, 1024,
-	serverAddress, VCAS_Port_SSL);
+	vcasServerAddress, VCAS_Port_SSL);
 
 	if (response_len < 12) {
 		free(response_buffer);
@@ -405,7 +438,7 @@ int API_GetAllChannelKeys() {
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-	serverAddress, (VKS_Port_SSL + 1));
+	vksServerAddress, (VKS_Port_SSL + 1));
 	if (retlen < 10) {
 		free(response_buffer);
 		return -1;
@@ -435,6 +468,11 @@ int API_GetAllChannelKeys() {
 int main(void) {
 	int exit_code = EXIT_FAILURE;
 	char retry_count = 0, res, t = 0;
+	
+	if (load_config() == 0) {
+		RETURN_ERR("Check your configuration file!");
+	}
+	
 	// Get client ID and MAC
 	load_clientid();
 	load_MAC();
@@ -444,8 +482,12 @@ int main(void) {
 		RETURN_ERR("Check your port configuration!");	
 	}
 	
-	if(strlen(serverAddress) == 0 || strcmp(serverAddress, "1.1.1.1") == 0) {
-		RETURN_ERR("Check your server IP!");
+	if(strlen(vcasServerAddress) == 0) {
+		RETURN_ERR("Check your VCAS server ip!");
+	}
+	
+	if(strlen(vksServerAddress) == 0) {
+		RETURN_ERR("Check your VKS server ip!");
 	}
 
 	if(strlen(api_clientID) != 56) {

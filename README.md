@@ -1,6 +1,6 @@
 Configuration
 ===========
-Before compiling please add your personal parameters in vm_api.c
+Configuration can be put in vm_api.ini
 
 
 Development
