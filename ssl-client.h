@@ -9,7 +9,7 @@
 #define SSL_CLIENT_H_
 
 int ssl_client_send(unsigned char *msg, uint16_t msglen, unsigned char*buf_received,uint16_t responselen,
-		const char *s_ipaddr, short int s_port);
+		const char *s_addr, short int s_port);
 void ssl_client_init();
 
 

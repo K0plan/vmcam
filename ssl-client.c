@@ -53,14 +53,18 @@ void ssl_client_init() {
 }
 
 int ssl_client_send(unsigned char * msg, uint16_t msglen,
-		unsigned char*buf_received, uint16_t responsebuflen, const char *s_ipaddr,
+		unsigned char*buf_received, uint16_t responsebuflen, const char *s_addr,
 		short int s_port) {
 	SSL_CTX *ctx;
 	SSL *ssl_sock;
 	int err;
 	int sock;
 	int datarecv;
-	struct sockaddr_in server_addr;
+	/* Use getaddrinfo to get server address */
+	char port_str[7];
+	struct addrinfo *aires;
+	struct addrinfo hints = {0};
+	const struct addrinfo *ai;
 	/* Create an SSL_METHOD structure (choose an SSL/TLS protocol version) */
 	const SSL_METHOD *meth = TLSv1_method();
 	char *str;
@@ -85,24 +89,28 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 	//SSL_CTX_set_verify_depth(ctx, 1);
 	/* ------------------------------------------------------------- */
 
-	/* Set up a TCP socket */
-
-	sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-	RETURN_ERR(sock, "socket");
-
-	memset(&server_addr, '\0', sizeof(server_addr));
-	server_addr.sin_family = AF_INET;
-
-	server_addr.sin_port = htons(s_port); /* Server Port number */
-
-	server_addr.sin_addr.s_addr = inet_addr(s_ipaddr); /* Server IP */
-
 	/* Establish a TCP/IP connection to the SSL client */
 
-	err = connect(sock, (struct sockaddr*) &server_addr, sizeof(server_addr));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;
 
+	snprintf(port_str, 7, "%d", s_port);
+	err = getaddrinfo(s_addr, port_str, &hints, &aires);
+	RETURN_ERR(err, "getaddrinfo");
+
+	ai = aires;
+	for (;ai != NULL &&
+		((sock = socket(ai->ai_family, ai->ai_socktype, 0)) < 0 ||
+		(err = connect(sock, ai->ai_addr, ai->ai_addrlen)) < 0);
+		close(sock), sock = 0, ai = ai->ai_next);
+
+	freeaddrinfo(aires);
+
+	RETURN_ERR(sock, "socket");
 	RETURN_ERR(err, "connect");
+
 	/* ----------------------------------------------- */
 	/* An SSL structure is created */
 
