@@ -25,3 +25,9 @@ Clients need to be changed to use AES instead of DES3
 - Username: user
 - Password: pass
 
+## Thanks
+Code is based upon the work of
+- [vm_api](https://github.com/spdfrk1/vm_api)
+- [OSCam](http://www.streamboard.tv/oscam/)
+- [tsdecrypt] (http://georgi.unixsol.org/programs/tsdecrypt/)
+
