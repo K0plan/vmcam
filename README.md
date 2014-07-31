@@ -1,23 +1,22 @@
-Configuration
-===========
-Configuration can be put in vm_api.ini
+# VMCam
+VMCam is a SoftCAM for Verimatrix VCAS for IPTV.
 
+## Configuration
+Configuration of Verimatrix can be put in vmcam.ini
 
-Development
-===========
-The development is done using git. vm_api repository is hosted
-at http://github.com/spdfrk1/vm_api
+## Development
+The development is done using git. VMCam repository is hosted
+at http://github.com/irtimmer/vmcam
 
 To clone the repository issue the following commands:
 
-	$ git clone git://github.com/spdfrk1/vm_api.git
-	$ cd vm_api
-	$ nano vm_api.c
+	$ git clone git://github.com/irtimmer/vmcam.git
+	$ cd vmcam
 	$ make
-   
+	
+## CAMD35-TCP/CS378x
+Clients need to be changed to use AES instead of DES3
+- Port: 8282
+- Username: user
+- Password: pass
 
-Windows
-===========
-There also is a Windows version (C#) available, created by Segs. 
-
-Please take a look at: https://github.com/IPTV-/VCAS

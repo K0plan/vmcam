@@ -1,11 +1,22 @@
-/*
- ============================================================================
- Name        : vm_api.c
- Author      : 
- Version     : 0.1
- Copyright   : None
- Description : VM api
- ============================================================================
+/**
+ * Copyright (c) 2014 Iwan Timmer
+ * 
+ * This file is part of VMCam.
+ * 
+ * VMCam is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * VMCam is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with VMCam.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * vmapi code derived from work by spdfrk1
  */
 
 #define __STDC_FORMAT_MACROS
@@ -17,8 +28,8 @@
 #include <ucontext.h>
 #include <string.h>
 
-#include<openssl/rc4.h>
-#include<openssl/md5.h>
+#include <openssl/rc4.h>
+#include <openssl/md5.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
 #include <openssl/pem.h>
@@ -74,7 +85,7 @@ char * f_csr = "csr.pem";
 char * f_rsa_private_key = "priv_key.pem";
 char * f_keyblock = "keyblock";
 char * f_ClientId = "clientid.dat";
-char * f_config = "vm_api.ini";
+char * f_config = "vmcam.ini";
 
 int load_config() {
 	FILE * fp;
@@ -465,9 +476,11 @@ int API_GetAllChannelKeys() {
 	return -1;
 }
 
-int main(void) {
+int init_vmapi(void) {
+	// Init SSL Client
+	ssl_client_init();
+
 	int exit_code = EXIT_FAILURE;
-	char retry_count = 0, res, t = 0;
 	
 	if (load_config() == 0) {
 		RETURN_ERR("Check your configuration file!");
@@ -498,13 +511,28 @@ int main(void) {
 	if(strlen(clientMAC) != 12) {
 		RETURN_ERR("Incorrect MAC length, format should be: \"615243342516\"");
 	}
-	
+
 	if(strlen(api_company) == 0) {
 		RETURN_ERR("Please add your company name to the configuration");
 	}
 
-	// Init SSL Client
-	ssl_client_init();
+	return EXIT_SUCCESS;
+cleanup:
+	if (api_clientID) {
+		free(api_clientID);
+	}
+
+	if (clientMAC) {
+		free(clientMAC);
+	}
+
+	return exit_code;
+}
+
+int load_keyblock(void) {
+	int exit_code = EXIT_FAILURE;
+	char retry_count = 0, res, t = 0;
+
 retry:
 	// Get Session key from server
 	while(API_GetSessionKey() != 0) {
@@ -560,14 +588,6 @@ cleanup:
 		free(timestamp);
 	}
 
-	if (api_clientID) {
-		free(api_clientID);
-	}
-	
-	if (clientMAC) {
-		free(clientMAC);
-	}
-	
 	return exit_code;
 }
 
