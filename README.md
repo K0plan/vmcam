@@ -14,6 +14,11 @@ To clone the repository issue the following commands:
 	$ cd vmcam
 	$ make
 	
+## Usage
+	vmcam -i [interface] -c [configfile]
+	-i [interface]	Name of interface to connect to Verimatrix server [default: eth0]\n");
+	-c [configfile]	Verimatrix configfile [default: vmcam.ini]
+	
 ## CAMD35-TCP/CS378x
 Clients need to be changed to use AES instead of DES3
 - Port: 8282

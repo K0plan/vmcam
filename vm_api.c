@@ -55,9 +55,6 @@ char vksServerAddress[31];			// Your VCAS server address
 int VCAS_Port_SSL;				// Your VCAS port
 int VKS_Port_SSL;				// Your VKS port
 
-// Used interface
-char * iface = "eth0";				// Your iface name, only used to obtain your MAC
-
 // API data
 char api_company[31];				// Your company
 const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
@@ -85,9 +82,8 @@ char * f_csr = "csr.pem";
 char * f_rsa_private_key = "priv_key.pem";
 char * f_keyblock = "keyblock";
 char * f_ClientId = "clientid.dat";
-char * f_config = "vmcam.ini";
 
-int load_config() {
+int load_config(char* f_config) {
 	FILE * fp;
 	int scan;
 	
@@ -141,7 +137,7 @@ int load_clientid() {
 	return 0;
 }
 
-void load_MAC() {
+void load_MAC(char* iface) {
 	int fd;
 	struct ifreq ifr;
 
@@ -476,19 +472,19 @@ int API_GetAllChannelKeys() {
 	return -1;
 }
 
-int init_vmapi(void) {
+int init_vmapi(char* config, char* iface) {
 	// Init SSL Client
 	ssl_client_init();
 
 	int exit_code = EXIT_FAILURE;
 	
-	if (load_config() == 0) {
+	if (load_config(config) == 0) {
 		RETURN_ERR("Check your configuration file!");
 	}
 	
 	// Get client ID and MAC
 	load_clientid();
-	load_MAC();
+	load_MAC(iface);
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {

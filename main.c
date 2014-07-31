@@ -55,14 +55,48 @@ void *reload_keyblock() {
 	}
 }
  
-int main() {
+int main(int argc, char *argv[]) {
 	int ret;
+	int i;
+	int usage = 0;
 	int one = 1, client_fd;
+	char* iface = "eth0";
+	char* config = "vmcam.ini";
 	struct sockaddr_in svr_addr, cli_addr;
 	socklen_t sin_len = sizeof(cli_addr);
 	pthread_t thread;
-	
-	if ((ret = init_vmapi()) == EXIT_FAILURE)
+
+	printf("VMCam - Verimatrix VCAS for IPTV SoftCAM\n");
+
+	for (i = 1; i < argc && usage == 0; i++) {
+		if (strcmp(argv[i], "-i") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a interface name after -i\n");
+				return -1;
+			}
+			iface = argv[i+1];
+			i++;
+		} else if (strcmp(argv[i], "-i") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a interface name after -i\n");
+				return -1;
+			}
+			iface = argv[i+1];
+			i++;
+		} else {
+			printf("Unknown option '%s'\n", argv[i]);
+			usage = 1;
+		}
+	}
+
+	if (usage) {
+		printf("Usage: vmcam -i [interface] -c [configfile] %d\n");
+		printf("\t-i [interface]\tName of interface to connect to Verimatrix server [default: eth0]\n");
+		printf("\t-c [configfile]\tVerimatrix configfile [default: vmcam.ini]\n");
+		return -1;
+	}
+
+	if ((ret = init_vmapi(config, iface)) == EXIT_FAILURE)
 		return ret;
 	
 	if ((ret = load_keyblock()) == EXIT_FAILURE)

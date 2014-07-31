@@ -17,5 +17,5 @@
  * along with VMCam.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-int init_vmapi(void);
+int init_vmapi(char* config, char* iface);
 int load_keyblock(void);
