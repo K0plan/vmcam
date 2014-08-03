@@ -18,6 +18,7 @@ To clone the repository issue the following commands:
 	vmcam -i [interface] -c [configfile]
 	-i [interface]	Name of interface to connect to Verimatrix server [default: eth0]\n");
 	-c [configfile]	Verimatrix configfile [default: vmcam.ini]
+	-C [camd interface] Set CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]
 	
 ## CAMD35-TCP/CS378x
 Clients need to be changed to use AES instead of DES3
@@ -25,9 +26,14 @@ Clients need to be changed to use AES instead of DES3
 - Username: user
 - Password: pass
 
+## NEWCAMD
+- Port 8282
+- Username: user
+- Password: pass
+- DES key: 0102030405060708091011121314
+
 ## Thanks
 Code is based upon the work of
 - [vm_api](https://github.com/spdfrk1/vm_api)
 - [OSCam](http://www.streamboard.tv/oscam/)
 - [tsdecrypt] (http://georgi.unixsol.org/programs/tsdecrypt/)
-

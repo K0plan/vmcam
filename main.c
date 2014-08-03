@@ -29,21 +29,36 @@
 #include <string.h>
 #include <pthread.h>
 
+#include "newcamd.h"
 #include "cs378x.h"
 #include "keyblock.h"
 #include "vm_api.h"
 
 const char* user = "user";
 const char* pass = "pass";
+const char key[14] = {0x01, '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x09', '\x10', '\x11', '\x12', '\x13', '\x14'};
 const int port = 8282;
 
-void *handle_client(void* client_fd) {
+void *handle_client_newcamd(void* client_fd) {
+	int fd = *((int*) client_fd);
+	struct newcamd c;
+
+	c.client_fd = fd;
+	newcamd_init(&c, user, pass, key);
+	while (newcamd_handle(&c, keyblock_analyse_file) != -1);
+	printf("Connection closed");
+
+	close(fd);
+}
+
+void *handle_client_cs378x(void* client_fd) {
 	int fd = *((int*) client_fd);
 	struct cs378x c;
 
 	c.client_fd = fd;
 	cs378x_init(&c, user, pass);
 	while (cs378x_handle(&c, keyblock_analyse_file) != -1);
+	printf("Connection closed");
 
 	close(fd);
 }
@@ -62,6 +77,7 @@ int main(int argc, char *argv[]) {
 	int one = 1, client_fd;
 	char* iface = "eth0";
 	char* config = "vmcam.ini";
+	int protocol = 0;
 	struct sockaddr_in svr_addr, cli_addr;
 	socklen_t sin_len = sizeof(cli_addr);
 	pthread_t thread;
@@ -83,6 +99,17 @@ int main(int argc, char *argv[]) {
 			}
 			iface = argv[i+1];
 			i++;
+		} else if (strcmp(argv[i], "-C") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a CAMD network protocol (CS378X/NEWCAMD)\n");
+				return -1;
+			}
+			if (strcasecmp(argv[i+1], "CS378X") == 0) {
+				protocol = 0;
+			} else if (strcasecmp(argv[i+1], "NEWCAMD") == 0) {
+				protocol = 1;
+			}
+			i++;
 		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
@@ -93,6 +120,7 @@ int main(int argc, char *argv[]) {
 		printf("Usage: vmcam -i [interface] -c [configfile] %d\n");
 		printf("\t-i [interface]\tName of interface to connect to Verimatrix server [default: eth0]\n");
 		printf("\t-c [configfile]\tVerimatrix configfile [default: vmcam.ini]\n");
+		printf("\t-C [camd interface]\tSet CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]\n");
 		return -1;
 	}
 
@@ -131,6 +159,9 @@ int main(int argc, char *argv[]) {
 
 		printf("[SERVER] Got connection\n");
 		
-		pthread_create(&thread, NULL, handle_client, &client_fd);
+		if (protocol == 0)
+			pthread_create(&thread, NULL, handle_client_cs378x, &client_fd);
+		else if (protocol == 1)
+			pthread_create(&thread, NULL, handle_client_newcamd, &client_fd);
 	}
 }
