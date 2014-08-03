@@ -87,17 +87,17 @@ int main(int argc, char *argv[]) {
 	for (i = 1; i < argc && usage == 0; i++) {
 		if (strcmp(argv[i], "-i") == 0) {
 			if (i+1 >= argc) {
-				printf("Need to provide a interface name after -i\n");
+				printf("Need to provide a interface\n");
 				return -1;
 			}
 			iface = argv[i+1];
 			i++;
-		} else if (strcmp(argv[i], "-i") == 0) {
+		} else if (strcmp(argv[i], "-c") == 0) {
 			if (i+1 >= argc) {
-				printf("Need to provide a interface name after -i\n");
+				printf("Need to provide a configfile\n");
 				return -1;
 			}
-			iface = argv[i+1];
+			config = argv[i+1];
 			i++;
 		} else if (strcmp(argv[i], "-C") == 0) {
 			if (i+1 >= argc) {
