@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
 	if (usage) {
 		printf("Usage: vmcam -i [interface] -c [configfile] %d\n");
 		printf("\t-i [interface]\tName of interface to connect to server [default: eth0]\n");
-		printf("\t-c [configfile]\VCAS configfile [default: vmcam.ini]\n");
+		printf("\t-c [configfile]\tVCAS configfile [default: vmcam.ini]\n");
 		printf("\t-C [camd interface]\tSet CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]\n");
 		return -1;
 	}
