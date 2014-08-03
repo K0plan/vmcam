@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 	socklen_t sin_len = sizeof(cli_addr);
 	pthread_t thread;
 
-	printf("VMCam - Verimatrix VCAS for IPTV SoftCAM\n");
+	printf("VMCam - VCAS SoftCAM for IPTV\n");
 
 	for (i = 1; i < argc && usage == 0; i++) {
 		if (strcmp(argv[i], "-i") == 0) {
@@ -118,8 +118,8 @@ int main(int argc, char *argv[]) {
 
 	if (usage) {
 		printf("Usage: vmcam -i [interface] -c [configfile] %d\n");
-		printf("\t-i [interface]\tName of interface to connect to Verimatrix server [default: eth0]\n");
-		printf("\t-c [configfile]\tVerimatrix configfile [default: vmcam.ini]\n");
+		printf("\t-i [interface]\tName of interface to connect to server [default: eth0]\n");
+		printf("\t-c [configfile]\VCAS configfile [default: vmcam.ini]\n");
 		printf("\t-C [camd interface]\tSet CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]\n");
 		return -1;
 	}

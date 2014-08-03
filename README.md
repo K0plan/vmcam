@@ -1,8 +1,8 @@
 # VMCam
-VMCam is a SoftCAM for Verimatrix VCAS for IPTV.
+VMCam is a VCAS SoftCAM for IPTV.
 
 ## Configuration
-Configuration of Verimatrix can be put in vmcam.ini
+Configuration of VCAS can be put in vmcam.ini
 
 ## Development
 The development is done using git. VMCam repository is hosted
@@ -16,8 +16,8 @@ To clone the repository issue the following commands:
 	
 ## Usage
 	vmcam -i [interface] -c [configfile]
-	-i [interface]	Name of interface to connect to Verimatrix server [default: eth0]\n");
-	-c [configfile]	Verimatrix configfile [default: vmcam.ini]
+	-i [interface]	Name of interface to connect to server [default: eth0]\n");
+	-c [configfile]	VCAS configfile [default: vmcam.ini]
 	-C [camd interface] Set CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]
 	
 ## CAMD35-TCP/CS378x
