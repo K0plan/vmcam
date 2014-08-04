@@ -104,7 +104,7 @@ int load_config(char* f_config) {
 			}
 		}
 	} else {
-		RETURN_ERR("Unable to read vm_api.ini");
+		RETURN_ERR("Unable to read configfile");
 	}
 	return -1;
 	
