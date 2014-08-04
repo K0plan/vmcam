@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <ucontext.h>
 #include <string.h>
 
 #include <openssl/rc4.h>

@@ -1,4 +1,4 @@
-OBJECTS = main.o keyblock.o crc32.o newcamd.o cs378x.o vm_api.o ssl-client.o tcp-client.o
+OBJECTS = main.o keyblock.o crc32.o newcamd.o cs378x.o vm_api.o ssl-client.o tcp-client.o md5crypt.c
 
 default: vmcam
 
@@ -6,7 +6,7 @@ default: vmcam
 	gcc -c $< -o $@
 
 vmcam: $(OBJECTS)
-	gcc $(OBJECTS) -lssl -lcrypto -lpthread -lcrypt -o $@
+	gcc $(OBJECTS) -lssl -lcrypto -lpthread -o $@
 
 clean:
 	-rm -f $(OBJECTS)

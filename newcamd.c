@@ -27,6 +27,7 @@
 
 #include "crc32.h"
 #include "newcamd.h"
+#include "md5crypt.h"
 
 #define NEWCAMD_HDR_LEN 8
 #define NEWCAMD_MSG_SIZE 400
@@ -85,7 +86,7 @@ int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned ch
 	write(c->client_fd, random, sizeof(random));
 
 	memcpy(c->key, key, 14);
-	c->pass = crypt(pass, "$1$abcdefgh$");
+	c->pass = md5_crypt("pass", "$1$abcdefgh$");
 
 	for(i = 0; i < 14; ++i) {
 		random[i] = random[i] ^ key[i];
@@ -110,7 +111,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 
 	switch(data[0]) {
 		case MSG_CLIENT_2_SERVER_LOGIN:
-			user = data + 2;
+			user = data + 3;
 			password = user + strlen(user) + 1;
 
 			response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
