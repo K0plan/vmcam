@@ -56,6 +56,16 @@ typedef enum {
 	MSG_KEEPALIVE = CWS_FIRSTCMDNO + 0x1d,
 } net_msg_type_t;
 
+unsigned char xor_sum(unsigned char* buffer, int len) {
+	unsigned char res = 0;
+	int i;
+
+	for (i=0;i<len;i++)
+		res ^= buffer[i];
+
+	return res;
+}
+
 static void des_key_spread(unsigned char *key, unsigned char *spread) {
 	spread[0] =  key[0] & 0xfe;
 	spread[1] = ((key[0] << 7) | (key[1] >> 1)) & 0xfe;
@@ -166,7 +176,6 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, uint16_t* msg_id, uint32_t* provider_id) {
 	DES_cblock ivec;
 	unsigned char buffer[NEWCAMD_MSG_SIZE];
-	unsigned char checksum = 0;
 	unsigned int len, retlen, i;
 
 	if (!read(c->client_fd, buffer, 2))
@@ -187,10 +196,7 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 	memcpy(ivec, buffer+len, sizeof(ivec));
 	DES_ede2_cbc_encrypt(buffer, buffer, len, &c->ks1, &c->ks2, (DES_cblock *)ivec, DES_DECRYPT);
 
-	for (i = 0; i < len; i++)
-		checksum ^= buffer[i];
-
-	if (checksum) {
+	if (xor_sum(buffer, len)) {
 		printf("[NEWCAMD] Checksum failed.\n");
 		return -1;
 	}
@@ -206,7 +212,7 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 
 int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t service_id, uint16_t msg_id, uint32_t provider_id) {
 	unsigned char checksum;
-	unsigned char buffer[NEWCAMD_MSG_SIZE];
+	char buffer[NEWCAMD_MSG_SIZE];
 	unsigned int padding_len, buf_len, i;
 
 	memset(buffer + 2, 0, NEWCAMD_HDR_LEN + 2);
@@ -230,10 +236,8 @@ int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t 
 	DES_random_key(&padding);
 	memcpy(buffer + buf_len, padding, padding_len);
 	buf_len += padding_len;
-	for (i = 2; i < buf_len; i++)
-		checksum ^= buffer[i];
-
-	buffer[buf_len++] = checksum;
+	buffer[buf_len] = xor_sum(buffer + 2, buf_len - 2);
+	buf_len++;
 
 	DES_cblock ivec;
 	DES_random_key(&ivec);
