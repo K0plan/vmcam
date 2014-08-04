@@ -34,6 +34,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/bio.h>
+#include <openssl/rand.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -116,6 +117,7 @@ cleanup:
 int load_clientid() {
 	int i, j = 0;
 	api_clientID = calloc(57, 1);
+	char buf[28];
 	FILE * fp;
 
 	fp = fopen(f_ClientId, "r");
@@ -126,10 +128,15 @@ int load_clientid() {
 			return 0;
 		}
 	}
-
-	for (i = 0; i < 28; i++) {
-		j += sprintf(api_clientID + j, "%02X", rand() & 0xFF);
+	printf("[API] No ClientID found, generating ClientID\n");
+	if (!RAND_bytes(buf, 28)) {
+		return -1;
 	}
+	
+	for (i = 0; i < 28; i++) {
+		j += sprintf(api_clientID + j, "%02X", buf[i] & 0xFF);
+	}
+	printf("[API] Your ClientID is: %s\n", api_clientID);
 	fp = fopen(f_ClientId, "w");
 	fwrite(api_clientID, j, 1, fp);
 	fclose(fp);
