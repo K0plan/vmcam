@@ -96,15 +96,6 @@ int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned ch
 	DES_key_sched((DES_cblock *)&spread[8], &c->ks2);
 }
 
-void printHex(char* type, unsigned char* data, int length) {
-	int i;
-	printf("%s", type);
-	for (i = 0;i<length;i++)
-		printf(" %02x", data[i]);
-
-	printf("\n");
-}
-
 int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char*)) {
 	unsigned char data[NEWCAMD_MSG_SIZE];
 	unsigned char response[NEWCAMD_MSG_SIZE];
@@ -112,8 +103,9 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 	unsigned int data_len, i;
 	unsigned char *user, *password;
 	uint16_t msg_id, service_id;
+	uint32_t provider_id;
 
-	if ((data_len = newcamd_recv(c, data, &service_id, &msg_id)) == -1)
+	if ((data_len = newcamd_recv(c, data, &service_id, &msg_id, &provider_id)) == -1)
 		return -1;
 
 	switch(data[0]) {
@@ -124,7 +116,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 			response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
 			if (strcmp(password, c->pass)==0) {
 				response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
-				newcamd_send(c, response, 3, 0, 0);
+				newcamd_send(c, response, 3, service_id, msg_id, provider_id);
 
 				for (i = 0; i < strlen(password); i++)
 					c->key[i%14] ^= password[i];
@@ -135,7 +127,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 				break;
 			} else {
 				response[0] = MSG_CLIENT_2_SERVER_LOGIN_NAK;
-				newcamd_send(c, response, 3, 0, 0);
+				newcamd_send(c, response, 3, service_id, msg_id, provider_id);
 				printf("[NEWCAMD] Password incorrect\n");
 				return -1;
 			}			
@@ -149,15 +141,17 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 
 			response[14] = 1; //Set number of cards
 			response[17] = 1; //Set provider ID of card 1
-			newcamd_send(c, response, 14+12, service_id, msg_id);
+			newcamd_send(c, response, 14+12, service_id, msg_id, provider_id);
 			break;
 		case MSG_KEEPALIVE:
-			newcamd_send(c, data, data_len, service_id, msg_id);
+			newcamd_send(c, data, data_len, service_id, msg_id, provider_id);
+			break;
 		case 0x80:
 		case 0x81:
 			f(response + 3, data);
 			response[0] = data[0];
-			newcamd_send(c, response, 32 + 3, service_id, msg_id);
+			response[1] = response[2] = 0x1;
+			newcamd_send(c, response, 32 + 3, service_id, msg_id, provider_id);
 			break;
 		case 0x00:
 			printf("[NEWCAMD] Strange code %d\n", data[0]);
@@ -168,7 +162,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 	}
 }
 
-int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, uint16_t* msg_id) {
+int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, uint16_t* msg_id, uint32_t* provider_id) {
 	DES_cblock ivec;
 	unsigned char buffer[NEWCAMD_MSG_SIZE];
 	unsigned char checksum = 0;
@@ -200,15 +194,16 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 		return -1;
 	}
 
-	*msg_id = ((buffer[2] << 8) | buffer[3]) & 0xFFFF;
-	*service_id = ((buffer[4] << 8) | buffer[5]) & 0xFFFF;
+	*msg_id = ((buffer[0] << 8) | buffer[1]) & 0xFFFF;
+	*service_id = ((buffer[2] << 8) | buffer[3]) & 0xFFFF;
+	*provider_id = buffer[4] << 16 | buffer[5] << 8 | buffer[6];
 
 	retlen = (((buffer[3 + NEWCAMD_HDR_LEN] << 8) | buffer[4 + NEWCAMD_HDR_LEN]) & 0x0FFF) + 3;
 	memcpy(data, buffer + 2 + NEWCAMD_HDR_LEN, retlen);
 	return retlen;
 }
 
-int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t service_id, uint16_t msg_id) {
+int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t service_id, uint16_t msg_id, uint32_t provider_id) {
 	unsigned char checksum;
 	unsigned char buffer[NEWCAMD_MSG_SIZE];
 	unsigned int padding_len, buf_len, i;
@@ -223,6 +218,9 @@ int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t 
 	buffer[3] = msg_id & 0xFF;
 	buffer[4] = service_id >> 8;
 	buffer[5] = service_id & 0xFF;
+	buffer[6] = provider_id >> 16;
+	buffer[7] = (provider_id >> 8) & 0xFF;
+	buffer[8] = provider_id & 0xFF;
 
 	DES_cblock padding;
 	buf_len = data_len + NEWCAMD_HDR_LEN + 4;

@@ -32,5 +32,5 @@ struct newcamd {
 int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned char* pass, const unsigned char* key);
 int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char*));
 
-int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, uint16_t* msg_id);
-int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t service_id, uint16_t msg_id);
+int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, uint16_t* msg_id, uint32_t* provider_id);
+int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t service_id, uint16_t msg_id, uint32_t provider_id);
