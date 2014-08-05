@@ -43,11 +43,12 @@
 
 #include "ssl-client.h"
 #include "tcp-client.h"
+#include "log.h"
 
 #define uchar unsigned char
 #define GETKEYS_BUFFSIZE (1024 * 100)
 
-#define RETURN_ERR(s) printf("[API] %s\n", s); goto cleanup;
+#define RETURN_ERR(s) LOG(ERROR, "[API] %s", s); goto cleanup;
 
 // Connection data
 char vcasServerAddress[31];			// Your VCAS server address
@@ -105,7 +106,7 @@ int load_config(char* f_config) {
 			}
 		}
 	} else {
-		RETURN_ERR("Unable to read configfile");
+		RETURN_ERR("[API] Unable to read configfile");
 	}
 	return -1;
 	
@@ -128,7 +129,7 @@ int load_clientid() {
 			return 0;
 		}
 	}
-	printf("[API] No ClientID found, generating ClientID\n");
+	LOG(INFO, "[API] No ClientID found, generating ClientID");
 	if (!RAND_bytes(buf, 28)) {
 		return -1;
 	}
@@ -136,7 +137,7 @@ int load_clientid() {
 	for (i = 0; i < 28; i++) {
 		j += sprintf(api_clientID + j, "%02X", buf[i] & 0xFF);
 	}
-	printf("[API] Your ClientID is: %s\n", api_clientID);
+	LOG(INFO, "[API] Your ClientID is: %s", api_clientID);
 	fp = fopen(f_ClientId, "w");
 	fwrite(api_clientID, j, 1, fp);
 	fclose(fp);
@@ -166,7 +167,7 @@ void load_MAC(char* iface) {
 	sprintf(clientMAC, "%.2x%.2x%.2x%.2x%.2x%.2x", mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	clientMAC[12] = 0;
-	printf("Detected MAC: %s for interface: %s\n", clientMAC, iface);
+	LOG(INFO, "[API] Detected MAC: %s for interface: %s", clientMAC, iface);
 	return;
 }
 
@@ -194,7 +195,7 @@ void generate_rsa_pkey() {
 		fclose(fp);
 	}
 
-	printf("Private key created:\n%s\n", pem_key);
+	LOG(VERBOSE, "[API] Private key created:\n%s", pem_key);
 
 	BIO_free_all(bio);
 	free(pem_key);
@@ -205,7 +206,7 @@ void load_rsa_pkey(RSA ** rsa_priv_key) {
 	// Read PEM Private Key
 	fp = fopen(f_rsa_private_key, "r");
 	if (fp) {
-		printf("Private key found\n");
+		LOG(INFO, "[API] Private key found");
 		*rsa_priv_key = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
 		fclose(fp);
 	} else {
@@ -244,7 +245,7 @@ int generate_csr(char** pem_csr) {
 	BIO *bio = NULL;
 
 	char * CN = calloc(64, 1);
-	sprintf(CN, "%s/%s", szCommon, szEmail);
+	LOG(DEBUG, "[API] CN %s/%s", szCommon, szEmail);
 
 	// 2. set version of x509 req
 	x509_req = X509_REQ_new();
@@ -317,7 +318,7 @@ int generate_csr(char** pem_csr) {
 		fclose(fp);
 	}
 
-	printf("CSR created:\n%s", *pem_csr);
+	LOG(VERBOSE, "[API] CSR created:\n%s", *pem_csr);
 	// 6. free
 	free_all: X509_REQ_free(x509_req);
 	BIO_free_all(bio);
@@ -384,10 +385,10 @@ int API_GetCertificate() {
 	long long unsigned int t64 = (long long unsigned int) time(NULL);
 
 	/******* Generate the CSR *******/
-	printf("Generating CSR\n");
+	LOG(INFO, "[API] Generating CSR");
 	szEmail = calloc(64, 1);
 	sprintf(szEmail, "%s.%llu@Verimatrix.com", clientMAC, t64);
-	printf("Using email: %s\n", szEmail);
+	LOG(INFO, "[API] Using email: %s", szEmail);
 	generate_csr(&csr);
 
 	/******* Generate the request string *******/
@@ -401,7 +402,7 @@ int API_GetCertificate() {
 	fwrite(msg, 1, msglen, fp);
 	fclose(fp);
 
-	printf("[API] Requesting Certificate: %s\n", msg);
+	LOG(VERBOSE, "[API] Requesting Certificate: %s", msg);
 
 	/******* Send the request *******/
 	response_len = ssl_client_send(msg, msglen, response_buffer, 1024,
@@ -434,7 +435,7 @@ int API_GetAllChannelKeys() {
 	FILE * fp;
 
 	if (response_buffer == NULL) {
-		printf("[API] GetAllChannelKeys failed, unable to allocate memory");
+		LOG(ERROR, "[API] GetAllChannelKeys failed, unable to allocate memory");
 		return -1;
 	}
 
@@ -446,7 +447,7 @@ int API_GetAllChannelKeys() {
 			api_company, timestamp, clientMAC, api_clientID, api_company, ski,
 			signedhash, clientMAC);
 
-	printf("[API] Requesting master keys: %s\n", msg);
+	LOG(VERBOSE, "[API] Requesting master keys: %s", msg);
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
@@ -460,7 +461,7 @@ int API_GetAllChannelKeys() {
 	keyblock = response_buffer + 4;
 	retlen -= 4;
 	
-	printf("[API] GetAllChannelKeys completed, size: %d\n", retlen);
+	LOG(INFO, "[API] GetAllChannelKeys completed, size: %d", retlen);
 
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, retlen, keyblock, keyblock);
@@ -472,7 +473,7 @@ int API_GetAllChannelKeys() {
 		free(response_buffer);
 		return 0;
 	} else {
-		printf("[API] GetAllChannelKeys failed, could not write keyblock\n");	
+		LOG(ERROR, "[API] GetAllChannelKeys failed, could not write keyblock");	
 	}
 	free(response_buffer);
 	return -1;
@@ -485,7 +486,7 @@ int init_vmapi(char* config, char* iface) {
 	int exit_code = EXIT_FAILURE;
 	
 	if (load_config(config) == 0) {
-		RETURN_ERR("Check your configuration file!");
+		RETURN_ERR("[API] Check your configuration file!");
 	}
 	
 	// Get client ID and MAC
@@ -494,28 +495,28 @@ int init_vmapi(char* config, char* iface) {
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {
-		RETURN_ERR("Check your port configuration!");	
+		RETURN_ERR("[API] Check your port configuration!");	
 	}
 	
 	if(strlen(vcasServerAddress) == 0) {
-		RETURN_ERR("Check your VCAS server ip!");
+		RETURN_ERR("[API] Check your VCAS server ip!");
 	}
 	
 	if(strlen(vksServerAddress) == 0) {
-		RETURN_ERR("Check your VKS server ip!");
+		RETURN_ERR("[API] Check your VKS server ip!");
 	}
 
 	if(strlen(api_clientID) != 56) {
 		remove(f_ClientId);
-		RETURN_ERR("Incorrect clientID length, length should be 56");	
+		RETURN_ERR("[API] Incorrect clientID length, length should be 56");	
 	}
 
 	if(strlen(clientMAC) != 12) {
-		RETURN_ERR("Incorrect MAC length, format should be: \"615243342516\"");
+		RETURN_ERR("[API] Incorrect MAC length, format should be: \"615243342516\"");
 	}
 
 	if(strlen(api_company) == 0) {
-		RETURN_ERR("Please add your company name to the configuration");
+		RETURN_ERR("[API] Please add your company name to the configuration");
 	}
 
 	return EXIT_SUCCESS;
@@ -539,7 +540,7 @@ retry:
 	// Get Session key from server
 	while(API_GetSessionKey() != 0) {
 		if (t > 2) {
-			RETURN_ERR("GetSessionKey failed");
+			RETURN_ERR("[API] GetSessionKey failed");
 		}
 		sleep(1);
 		t++;
@@ -550,24 +551,24 @@ retry:
 	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
 	if (generate_ski_string() < 0) {
 		if (API_GetCertificate() < 0) {
-			RETURN_ERR("Unable to get Signed Certificate");
+			RETURN_ERR("[API] Unable to get Signed Certificate");
 		}
 		if (generate_ski_string() < 0) {
-			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
+			RETURN_ERR("[API] Got a Signed Certificate but unable to get SKI");
 		}
 	}
 
-	printf("Using Subject Key Identifier: %s\n", ski);
+	LOG(DEBUG, "[API] Using Subject Key Identifier: %s", ski);
 
 	// Give the server some time
 	sleep(1);
 
 	// Get the Master Keys
 	if(API_GetAllChannelKeys() < 0) {
-		printf("GetAllChannelKeys failed\n");
+		LOG(ERROR, "[API] GetAllChannelKeys failed");
 		if(retry_count < 2){
 			retry_count += 1;
-			printf("Will cleanup and retry in 5 seconds... Retry count: %d\n", retry_count);
+			LOG(INFO, "[API] Will cleanup and retry in 5 seconds... Retry count: %d", retry_count);
 			res = remove(f_signedcert);
 			res += remove(f_rsa_private_key);
 			res += remove(f_csr);

@@ -28,6 +28,7 @@
 #include "crc32.h"
 #include "newcamd.h"
 #include "md5crypt.h"
+#include "log.h"
 
 #define NEWCAMD_HDR_LEN 8
 #define NEWCAMD_MSG_SIZE 400
@@ -88,6 +89,17 @@ static void des_key_spread(unsigned char *key, unsigned char *spread) {
 	DES_set_odd_parity((DES_cblock *)&spread[8]);
 }
 
+static void print_hex(char* msg, unsigned char* data, int length) {
+	int i;
+	if (VERBOSE <= debug_level) {
+		printf("[NEWCAMD] %s", msg);
+		for (i = 0; i < length; i++)
+			printf(" %02x", data[i]);
+		
+		printf("\n");
+	}
+}
+
 int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned char* pass, const unsigned char* key) {
 	unsigned char random[14];
 	unsigned char spread[16];
@@ -124,6 +136,9 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 			user = data + 3;
 			password = user + strlen(user) + 1;
 
+			LOG(INFO, "[NEWCAMD] Login by %s", user);
+			LOG(DEBUG, "[NEWCAMD] Password '%s' == '%s'", password, c->pass);
+			
 			response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
 			if (strcmp(password, c->pass)==0) {
 				response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
@@ -139,10 +154,11 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 			} else {
 				response[0] = MSG_CLIENT_2_SERVER_LOGIN_NAK;
 				newcamd_send(c, response, 3, service_id, msg_id, provider_id);
-				printf("[NEWCAMD] Password incorrect\n");
+				LOG(ERROR, "[NEWCAMD] Password incorrect");
 				return -1;
 			}			
 		case MSG_CARD_DATA_REQ:
+			LOG(DEBUG, "[NEWCAMD] Request card info");
 			memset(response, 0, 14+12);
 			response[0] = MSG_CARD_DATA;
 
@@ -155,6 +171,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 			newcamd_send(c, response, 14+12, service_id, msg_id, provider_id);
 			break;
 		case MSG_KEEPALIVE:
+			LOG(DEBUG, "[NEWCAMD] Received keepalive");
 			newcamd_send(c, data, data_len, service_id, msg_id, provider_id);
 			break;
 		case 0x80:
@@ -165,10 +182,10 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 			newcamd_send(c, response, 32 + 3, service_id, msg_id, provider_id);
 			break;
 		case 0x00:
-			printf("[NEWCAMD] Strange code %d\n", data[0]);
+			LOG(ERROR, "[NEWCAMD] Strange code %d", data[0]);
 			break;
 		default:
-			printf("[NEWCAMD] Unknown code %d\n", data[0]);
+			LOG(ERROR, "[NEWCAMD] Unknown code %d", data[0]);
 			return -1;
 	}
 }
@@ -182,14 +199,16 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 		return -1;
 
 	len = ((buffer[0] << 8) | buffer[1]) & 0xFFFF;
+	
+	LOG(DEBUG, "[NEWCAMD] Read message of %d bytes", len);
 
 	if (len > NEWCAMD_MSG_SIZE) {
-		printf("[NEWCAMD] Message too long\n");
+		LOG(ERROR, "[NEWCAMD] Message too long");
 		return -1;
 	}
 
 	if (read(c->client_fd, buffer, len) < len) {
-		printf("[NEWCAMD] Received message too short\n");
+		LOG(ERROR, "[NEWCAMD] Received message too short");
 	}
 
 	len -= sizeof(ivec);
@@ -197,16 +216,20 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 	DES_ede2_cbc_encrypt(buffer, buffer, len, &c->ks1, &c->ks2, (DES_cblock *)ivec, DES_DECRYPT);
 
 	if (xor_sum(buffer, len)) {
-		printf("[NEWCAMD] Checksum failed.\n");
+		LOG(ERROR, "[NEWCAMD] Checksum failed.");
 		return -1;
 	}
 
 	*msg_id = ((buffer[0] << 8) | buffer[1]) & 0xFFFF;
 	*service_id = ((buffer[2] << 8) | buffer[3]) & 0xFFFF;
 	*provider_id = buffer[4] << 16 | buffer[5] << 8 | buffer[6];
-
+	
 	retlen = (((buffer[3 + NEWCAMD_HDR_LEN] << 8) | buffer[4 + NEWCAMD_HDR_LEN]) & 0x0FFF) + 3;
+	LOG(DEBUG, "[NEWCAMD] Received message msgid: %d, serviceid: %d, providerid: %d, length: %d", *msg_id, *service_id, *provider_id, retlen);
 	memcpy(data, buffer + 2 + NEWCAMD_HDR_LEN, retlen);
+
+	print_hex("received data", buffer, len);
+
 	return retlen;
 }
 
@@ -228,6 +251,8 @@ int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t 
 	buffer[6] = provider_id >> 16;
 	buffer[7] = (provider_id >> 8) & 0xFF;
 	buffer[8] = provider_id & 0xFF;
+	
+	LOG(DEBUG, "[NEWCAMD] Send message msgid: %d, serviceid: %d, providerid: %d, length: %d", msg_id, service_id, provider_id, data_len + 2 + NEWCAMD_HDR_LEN);
 
 	DES_cblock padding;
 	buf_len = data_len + NEWCAMD_HDR_LEN + 4;
@@ -242,6 +267,7 @@ int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t 
 	DES_cblock ivec;
 	DES_random_key(&ivec);
 	memcpy(buffer + buf_len, ivec, sizeof(ivec));
+	print_hex("sended data", buffer + 2, data_len + NEWCAMD_HDR_LEN + 4);
 	DES_ede2_cbc_encrypt(buffer + 2, buffer + 2, buf_len - 2, &c->ks1, &c->ks2, (DES_cblock *)ivec, DES_ENCRYPT);
 
 	buf_len += sizeof(DES_cblock);

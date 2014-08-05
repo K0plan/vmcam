@@ -33,6 +33,7 @@
 #include "cs378x.h"
 #include "keyblock.h"
 #include "vm_api.h"
+#include "log.h"
 
 const char* user = "user";
 const char* pass = "pass";
@@ -46,7 +47,7 @@ void *handle_client_newcamd(void* client_fd) {
 	c.client_fd = fd;
 	newcamd_init(&c, user, pass, key);
 	while (newcamd_handle(&c, keyblock_analyse_file) != -1);
-	printf("Connection closed");
+	LOG(INFO, "[VMCAM] Connection closed");
 
 	close(fd);
 }
@@ -58,7 +59,7 @@ void *handle_client_cs378x(void* client_fd) {
 	c.client_fd = fd;
 	cs378x_init(&c, user, pass);
 	while (cs378x_handle(&c, keyblock_analyse_file) != -1);
-	printf("Connection closed");
+	LOG(INFO, "[VMCAM] Connection closed");
 
 	close(fd);
 }
@@ -81,6 +82,8 @@ int main(int argc, char *argv[]) {
 	struct sockaddr_in svr_addr, cli_addr;
 	socklen_t sin_len = sizeof(cli_addr);
 	pthread_t thread;
+
+	debug_level = 0;
 
 	printf("VMCam - VCAS SoftCAM for IPTV\n");
 
@@ -110,6 +113,13 @@ int main(int argc, char *argv[]) {
 				protocol = 1;
 			}
 			i++;
+		} else if (strcmp(argv[i], "-d") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a debug level\n");
+				return -1;
+			}
+			debug_level = atoi(argv[i+1]);
+			i++;
 		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
@@ -121,6 +131,7 @@ int main(int argc, char *argv[]) {
 		printf("\t-i [interface]\tName of interface to connect to server [default: eth0]\n");
 		printf("\t-c [configfile]\tVCAS configfile [default: vmcam.ini]\n");
 		printf("\t-C [camd interface]\tSet CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]\n");
+		printf("\t-d [debug level]\tSet debug level [default: 0]\n");
 		return -1;
 	}
 
@@ -132,7 +143,7 @@ int main(int argc, char *argv[]) {
 
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0)
-	err(1, "[SERVER] Can't open socket");
+	err(1, "[VMCAM] Can't open socket");
 
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
 
@@ -142,22 +153,22 @@ int main(int argc, char *argv[]) {
 
 	if (bind(sock, (struct sockaddr *) &svr_addr, sizeof(svr_addr)) == -1) {
 		close(sock);
-		err(1, "[SERVER] Can't bind");
+		err(1, "[VMCAM] Can't bind");
 	}
 
 	listen(sock, 5);
-	printf("[SERVER] Start VMCam server on port %d\n", port);
+	LOG(INFO, "[VMCAM] Start VMCam server on port %d", port);
 	
 	pthread_create(&thread, NULL, reload_keyblock, NULL);
 	
 	while (1) {
 		client_fd = accept(sock, (struct sockaddr *) &cli_addr, &sin_len);
 		if (client_fd == -1) {
-			perror("[SERVER] Can't accept");
+			perror("[VMCAM] Can't accept");
 			continue;
 		}
 
-		printf("[SERVER] Got connection\n");
+		LOG(INFO, "[VMCAM] Got connection");
 		
 		if (protocol == 0)
 			pthread_create(&thread, NULL, handle_client_cs378x, &client_fd);

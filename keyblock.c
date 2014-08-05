@@ -25,6 +25,7 @@
 #include <openssl/aes.h>
 
 #include "keyblock.h"
+#include "log.h"
 
 #define OFFSET_MKEY1 4
 #define OFFSET_MKEY2 56
@@ -63,11 +64,10 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 	char valid_till_str2[64];
 	fp = fopen("keyblock", "r");
 	if (!fp) {
-		printf("[KEYBLOCK] Could not open file\n");
+		LOG(ERROR, "[KEYBLOCK] Could not open file");
 		return (0);
 	}
-	printf("[KEYBLOCK] Find control word for Channel %d table 0x%02X\n", channel,
-			table);
+	LOG(INFO, "[KEYBLOCK] Find control word for Channel %d table 0x%02X", channel, table);
 
 	fseek(fp, 4, SEEK_SET);
 	while (fread(token, 108, 1, fp)) {
@@ -75,24 +75,20 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 			time_now = time(NULL);
 			time_mkey1 = parse_ts(token + OFFSET_EXPIRE_MKEY1);
 			time_mkey2 = parse_ts(token + OFFSET_EXPIRE_MKEY2);
-			printf(
-					"[KEYBLOCK] Master keys found for Channel: %d. Valid till: %s - %s",
-					channel, ctime_r(&time_mkey2, valid_till_str), ctime_r(&time_now, valid_till_str2));
+			LOG(DEBUG, "[KEYBLOCK] Master keys found for Channel: %d. Valid till: %s - %s",	channel, ctime_r(&time_mkey2, valid_till_str), ctime_r(&time_now, valid_till_str2));
 
 			if (difftime(time_mkey1, time_now) > 0) { // Check expire date mkey 1
-				printf("[KEYBLOCK] Master key 1 selected\n");
+				LOG(DEBUG, "[KEYBLOCK] Master key 1 selected");
 				mkey = token + OFFSET_MKEY1;
 			} else {
 				if (difftime(time_mkey2, time_now) > 0) { // Check expire date mkey 2
-					printf("[KEYBLOCK] Master key 2 selected\n");
+					LOG(DEBUG, "[KEYBLOCK] Master key 2 selected");
 					if (difftime(time_mkey2, time_now) < 86400) {
-						printf(
-								"[KEYBLOCK] Warning: Master keys for Channel: %d will expire in %d minutes\n",
-								channel, (int)difftime(time_mkey2, time_now) / 60);
+						LOG(DEBUG, "[KEYBLOCK] Warning: Master keys for Channel: %d will expire in %d minutes",	channel, (int)difftime(time_mkey2, time_now) / 60);
 					}
 					mkey = token + OFFSET_MKEY2;
 				} else {
-					printf("[KEYBLOCK] Keyblock is to old\n");
+					LOG(INFO, "[KEYBLOCK] Keyblock is to old\n");
 					return 0;
 				}
 			}
@@ -102,30 +98,30 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 				AES_ecb_encrypt(&ECM[24 + t], &ECM[24 + t], &aesmkey,
 				AES_DECRYPT);
 			}
+			
+			LOG(VERBOSE, "[KEYBLOCK] ECM %x %x %x %x %x %x", ECM[0], ECM[1], ECM[2], ECM[3], ECM[4], ECM[5]);
+			LOG(VERBOSE, "[KEYBLOCK] Key 1 %x %x %x %x %x %x", ECM[0+OFFSET_CWKEYS], ECM[1+OFFSET_CWKEYS], ECM[2+OFFSET_CWKEYS], ECM[3+OFFSET_CWKEYS], ECM[4+OFFSET_CWKEYS], ECM[5+OFFSET_CWKEYS]);
+			LOG(VERBOSE, "[KEYBLOCK] Key 2 %x %x %x %x %x %x", ECM[0+OFFSET_CWKEYS+16], ECM[1+OFFSET_CWKEYS+16], ECM[2+OFFSET_CWKEYS+16], ECM[3+OFFSET_CWKEYS+16], ECM[4+OFFSET_CWKEYS+16], ECM[5+OFFSET_CWKEYS+16]);
+
+			
 			if (memcmp(&ECM[24], "CEB", 3) == 0) {
-				printf("[KEYBLOCK] ECM decrypt check passed\n");
-				printf("%x %x %x %x %x %x\n", ECM[0], ECM[1], ECM[2], ECM[3], ECM[4], ECM[5]);
-				printf("%x %x %x %x %x %x\n", ECM[0+OFFSET_CWKEYS], ECM[1+OFFSET_CWKEYS], ECM[2+OFFSET_CWKEYS], ECM[3+OFFSET_CWKEYS], ECM[4+OFFSET_CWKEYS], ECM[5+OFFSET_CWKEYS]);
+				LOG(DEBUG, "[KEYBLOCK] ECM decrypt check passed");
 			} else {
-				printf(
-						"[KEYBLOCK] ECM decrypt failed, wrong master key or unknown format\n");
+				LOG(ERROR, "[KEYBLOCK] ECM decrypt failed, wrong master key or unknown format");
 				fclose(fp);
 				return 0;
 			}
 			if (table == 0x80) {
 				memcpy(dcw, ECM + OFFSET_CWKEYS, 32);
-				printf("%x %x %x %x %x %x\n", dcw[0+16], dcw[1+16], dcw[2+16], dcw[3+16], dcw[4+16], dcw[5+16]);
 			} else {
 				memcpy(dcw, ECM + OFFSET_CWKEYS + 16, 16);
 				memcpy(dcw + 16, ECM + OFFSET_CWKEYS, 16);
-				printf("%x %x %x %x %x %x\n", dcw[0], dcw[1], dcw[2], dcw[3], dcw[4], dcw[5]);
 			}
 			fclose(fp);
 			return 1;
 		}
 	}
-	printf("[KEYBLOCK] No Master key found for channel: %d, cannot decrypt ECM",
-			channel);
+	LOG(ERROR, "[KEYBLOCK] No Master key found for channel: %d, cannot decrypt ECM", channel);
 	fclose(fp);
 	return 0;
 }

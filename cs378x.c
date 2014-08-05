@@ -25,6 +25,7 @@
 
 #include "crc32.h"
 #include "cs378x.h"
+#include "log.h"
 
 #define CAMD35_HDR_LEN (20)
 #define CAMD35_BUF_LEN (CAMD35_HDR_LEN + 256 + 16)
@@ -69,7 +70,7 @@ int cs378x_handle(struct cs378x *c, int32_t (*f)(unsigned char*, unsigned char*)
 		short ca_id = (data[10] << 8) | data[11];
 		int provider_id = (((data[12] << 24) | (data[13] << 16) | (data[14]<<8) | data[15]) & 0xffffffffL);
 		short message_id = (data[16] << 8) | data[17];
-		printf("Request %d:%d %d %d\n", service_id, ca_id, provider_id, message_id);
+		LOG(DEBUG, "[CS378x] Request %d:%d %d %d\n", service_id, ca_id, provider_id, message_id);
 		
 		f(dcw, data+CAMD35_HDR_LEN);
 		
@@ -98,7 +99,7 @@ int cs378x_recv(struct cs378x *c, unsigned char* data) {
 	auth_token = (((data[0] << 24) | (data[1] << 16) | (data[2]<<8) | data[3]) & 0xffffffffL);
 
 	if (auth_token != c->auth_token) {
-		printf("Auth key is not valid %u != %u\n", auth_token, c->auth_token);
+		LOG(ERROR, "[CS378x] Auth key is not valid %u != %u\n", auth_token, c->auth_token);
 		return -1;
 	}
 	
