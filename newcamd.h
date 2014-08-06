@@ -27,6 +27,7 @@ struct newcamd {
 	DES_key_schedule ks1, ks2;
 	char key[14];
 	char* pass;
+	char* user;
 };
 
 int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned char* pass, const unsigned char* key);

@@ -109,6 +109,7 @@ int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned ch
 
 	memcpy(c->key, key, 14);
 	c->pass = md5_crypt("pass", "$1$abcdefgh$");
+	c->user = user;
 
 	for(i = 0; i < 14; ++i) {
 		random[i] = random[i] ^ key[i];
@@ -136,11 +137,11 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 			user = data + 3;
 			password = user + strlen(user) + 1;
 
-			LOG(INFO, "[NEWCAMD] Login by %s", user);
+			LOG(INFO, "[NEWCAMD] User '%s' == '%s'", user, c->user);
 			LOG(DEBUG, "[NEWCAMD] Password '%s' == '%s'", password, c->pass);
 			
 			response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
-			if (strcmp(password, c->pass)==0) {
+			if (strcmp(user, c->user)==0 && strcmp(password, c->pass)==0) {
 				response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
 				newcamd_send(c, response, 3, service_id, msg_id, provider_id);
 
