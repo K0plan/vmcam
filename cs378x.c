@@ -47,6 +47,17 @@ uint8_t *init_2b(uint32_t val, uint8_t *b) {
 	return b;
 }
 
+static void print_hex(char* msg, unsigned char* data, int length) {
+	int i;
+	if (VERBOSE <= debug_level) {
+		printf("[CS378x] %s", msg);
+		for (i = 0; i < length; i++)
+			printf(" %02x", data[i]);
+
+		printf("\n");
+	}
+}
+
 int cs378x_init(struct cs378x *c, const unsigned char* user, const unsigned char* pass) {
 	unsigned char dump[16];
 	
@@ -70,7 +81,7 @@ int cs378x_handle(struct cs378x *c, int32_t (*f)(unsigned char*, unsigned char*)
 		short ca_id = (data[10] << 8) | data[11];
 		int provider_id = (((data[12] << 24) | (data[13] << 16) | (data[14]<<8) | data[15]) & 0xffffffffL);
 		short message_id = (data[16] << 8) | data[17];
-		LOG(DEBUG, "[CS378x] Request %d:%d %d %d\n", service_id, ca_id, provider_id, message_id);
+		LOG(DEBUG, "[CS378x] Requestmessage serviceid: %d, caid: %d, providerid: %d, msgid: %d, length: %d", service_id, ca_id, provider_id, message_id);
 		
 		f(dcw, data+CAMD35_HDR_LEN);
 		
@@ -79,7 +90,9 @@ int cs378x_handle(struct cs378x *c, int32_t (*f)(unsigned char*, unsigned char*)
 		
 		data_len = 32;
 		data[0] = 0x01;
+		init_2b(service_id, data + 8);
 		init_2b(ca_id, data + 10);
+		init_4b(provider_id, data + 12);
 		init_2b(message_id, data + 16);
 		memcpy(data + CAMD35_HDR_LEN, dcw, data_len);
 		
@@ -99,7 +112,7 @@ int cs378x_recv(struct cs378x *c, unsigned char* data) {
 	auth_token = (((data[0] << 24) | (data[1] << 16) | (data[2]<<8) | data[3]) & 0xffffffffL);
 
 	if (auth_token != c->auth_token) {
-		LOG(ERROR, "[CS378x] Auth key is not valid %u != %u\n", auth_token, c->auth_token);
+		LOG(ERROR, "[CS378x] Auth key is not valid %u != %u", auth_token, c->auth_token);
 		return -1;
 	}
 	
@@ -111,6 +124,8 @@ int cs378x_recv(struct cs378x *c, unsigned char* data) {
 		if (i == 0)
 			data_len = boundary(4, data[1] + 20); // Initialize real data length
 	}
+
+	print_hex("received data", data, data_len);
 }
 
 int cs378x_send(struct cs378x *c, unsigned char* data, int data_len) {
@@ -121,6 +136,7 @@ int cs378x_send(struct cs378x *c, unsigned char* data, int data_len) {
 	write(c->client_fd, token, 4);
 		
 	data[1] = data_len;
+	print_hex("sended data", data, data_len + CAMD35_HDR_LEN);
 
 	init_4b(crc32(0L, data + CAMD35_HDR_LEN, data_len), data + 4);
 		
