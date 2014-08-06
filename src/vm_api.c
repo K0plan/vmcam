@@ -103,13 +103,6 @@ char* strconcat(char* str1, char* str2) {
 }
 
 void set_dir(char* dir) {
-	struct stat st = {0};
-
-	if (stat(dir, &st) == -1) {
-		LOG(ERROR, "[API] Directory %s doesn't exist", dir);
-		exit(-1);
-	}
-
 	f_signedcert = strconcat(dir, "/SignedCert.der");
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
@@ -117,6 +110,8 @@ void set_dir(char* dir) {
 }
 
 void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir) {
+	struct stat st = {0};
+
 	if (vcas_address != 0)
 		strncpy(vcasServerAddress, vcas_address, 30);
 
@@ -137,6 +132,11 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 
 	if (dir != 0)
 		set_dir(dir);
+
+	if (stat(dir, &st) == -1) {
+		LOG(ERROR, "[API] Directory %s doesn't exist", dir);
+		exit(-1);
+	}
 }
 
 int load_config(char* f_config) {
