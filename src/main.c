@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 	char* company = 0;
 	char* dir = 0;
 	unsigned int interval = 0;
-	int debug;
+	int debug = -1;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
 
@@ -300,7 +300,9 @@ int main(int argc, char *argv[]) {
 	}
 	
 	load_config(config);
-	debug_level = debug;
+	if (debug > 0)
+		debug_level = debug;
+	
 	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval, dir);
 
 	if ((ret = init_vmapi(iface, force_mac, mac)) == EXIT_FAILURE)
