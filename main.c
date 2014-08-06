@@ -276,16 +276,27 @@ int main(int argc, char *argv[]) {
 		err(1, "[VMCAM] Both CS378x and Newcamd are disabled");
 
 	if (usage) {
-		printf("Usage: vmcam -i [interface] -c [configfile] %d\n");
-		printf("\t-i [interface]\tName of interface to connect to server [default: eth0]\n");
-		printf("\t-c [configfile]\tVCAS configfile [default: vmcam.ini]\n");
-		printf("\t-l [ip addres]\tListen on ip address [default: 0.0.0.0]\n");
+		printf("Usage: vmcam [options]\n\n");
+		printf("\t-e [directory]\t\tDirectory to store files\n");
+		printf("\t-d [debug level]\tSet debug level [default: 0]\n\n");
+		printf("  VCAS/VKS:\n\n");
+		printf("\t-c [configfile]\t\tVCAS configfile [default: vmcam.ini]\n");
+		printf("\t-ss [VCAS address]\tSet VCAS hostname to connect to\n");
+		printf("\t-sk [VKS address]\tSet VKS hostname to connect to\n");
+		printf("\t-ps [VCAS port]\t\tSet VCAS port number to connect to\n");
+		printf("\t-pk [VKS port]\t\tSet VKS port number to connect to\n");
+		printf("\t-C [Company name]\tSet name of company for key retreival\n");
+		printf("\t-t [interval]\t\tInterval for updating keys [default: 300]\n");
+		printf("\t-i [interface]\t\tName of connecting interface [default: eth0]\n");
+		printf("\t-m [mac addres]\t\tSet mac addres [default from interface]\n");
+		printf("\t-noinitial\t\tSkip initial keyblock retrieval\n\n");
+		printf("  Newcamd/CS378x:\n\n");
 		printf("\t-pn [Newcamd port]\tSet Newcamd port number or 0 to disable [default: 15050]\n");
 		printf("\t-pc [CS378x port]\tSet CS378x port number or 0 to disable [default: 15080]\n");
-		printf("\t-u [username]\tSet allowed user on server [default: user]\n");
-		printf("\t-p [password]\tSet password for server [default: pass]\n");
-		printf("\t-k [DES key]\tSet DES key for Newcamd [default: 0102030405060708091011121314]\n");
-		printf("\t-d [debug level]\tSet debug level [default: 0]\n");
+		printf("\t-l [ip addres]\t\tListen on ip address [default: 0.0.0.0]\n");
+		printf("\t-u [username]\t\tSet allowed user on server [default: user]\n");
+		printf("\t-p [password]\t\tSet password for server [default: pass]\n");
+		printf("\t-k [DES key]\t\tSet DES key for Newcamd [default: 0102030405060708091011121314]\n");
 		return -1;
 	}
 	
