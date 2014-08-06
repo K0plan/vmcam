@@ -98,6 +98,8 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0;
 
+	LOG(DEBUG, "[tcp-client] Connect to %s:%d", s_addr, s_port);
+
 	snprintf(port_str, 7, "%d", s_port);
 	err = getaddrinfo(s_addr, port_str, &hints, &aires);
 	RETURN_ERR(err, "getaddrinfo");
