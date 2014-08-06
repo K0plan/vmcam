@@ -85,11 +85,9 @@ char * f_csr;
 char * f_rsa_private_key;
 char * f_keyblock;
 char * f_ClientId;
+char f_dir[256];
 
 char* strconcat(char* str1, char* str2) {
-	if (strlen(str1) == 0)
-		return str2;
-
 	int length = strlen(str1) + strlen(str2);
 	char* result = malloc(length);
 	if (result == NULL) {
@@ -107,6 +105,7 @@ void set_dir(char* dir) {
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
 	f_ClientId = strconcat(dir, "/clientid.dat");
+	strncpy(f_dir, dir, 255);
 }
 
 void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir) {
@@ -133,9 +132,8 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 	if (dir != 0)
 		set_dir(dir);
 
-	if (stat(dir, &st) == -1) {
-		LOG(ERROR, "[API] Directory %s doesn't exist", dir);
-		exit(-1);
+	if (stat(f_dir, &st) == -1) {
+		LOG(ERROR, "[API] Directory %s doesn't exist", f_dir);
 	}
 }
 
