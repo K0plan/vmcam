@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
 	int debug = -1;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
+	debug_level = 0;
 
 	printf("VMCam - VCAS SoftCAM for IPTV\n");
 
@@ -172,7 +173,7 @@ int main(int argc, char *argv[]) {
 				printf("Need to provide a debug level\n");
 				return -1;
 			}
-			debug = atoi(argv[i+1]);
+			debug_level = debug = atoi(argv[i+1]);
 			i++;
 		} else if (strcmp(argv[i], "-u") == 0) {
 			if (i+1 >= argc) {
