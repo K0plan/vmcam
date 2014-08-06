@@ -203,7 +203,8 @@ int main(int argc, char *argv[]) {
 	}
 	
 	while (1) {
-		sleep(60 * 60 * 24);
+		LOG(INFO, "[VMCAM] Next keyblock update in %d seconds", key_interval);
+		sleep(key_interval);
 		load_keyblock();
 	}
 }

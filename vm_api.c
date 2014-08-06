@@ -41,6 +41,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>   //ifreq
 
+#include "vm_api.h"
 #include "ssl-client.h"
 #include "tcp-client.h"
 #include "log.h"
@@ -87,6 +88,7 @@ char * f_ClientId = "clientid.dat";
 int load_config(char* f_config) {
 	FILE * fp;
 	int scan;
+	key_interval = 300;
 	
 	char key[31], value[31];
 	if ((fp = fopen(f_config, "r"))) {
@@ -102,6 +104,8 @@ int load_config(char* f_config) {
 					VCAS_Port_SSL = atoi(value);
 				} else if (strcasecmp(key, "PREFERRED_VKS") == 0) {
 					sscanf(value, "%30[^/]/%d", vksServerAddress, &VKS_Port_SSL);
+				} else if (strcasecmp(key, "MIN_KEY_RETRY_INTERVAL") == 0) {
+					key_interval = atoi(value);
 				}
 			}
 		}
