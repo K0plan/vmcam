@@ -35,10 +35,9 @@
 #include "vm_api.h"
 #include "log.h"
 
-const char* user = "user";
-const char* pass = "pass";
-const char key[14] = {0x01, '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x09', '\x10', '\x11', '\x12', '\x13', '\x14'};
-const int port = 8282;
+char* user = "user";
+char* pass = "pass";
+char key[14] = {0x01, '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x09', '\x10', '\x11', '\x12', '\x13', '\x14'};
 
 struct handler {
 	int sock;
@@ -165,7 +164,32 @@ int main(int argc, char *argv[]) {
 			}
 			debug_level = atoi(argv[i+1]);
 			i++;
-		} else {
+		} else if (strcmp(argv[i], "-u") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a username\n");
+				return -1;
+			}
+			user = argv[i+1];
+			i++;
+		} else if (strcmp(argv[i], "-p") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a password\n");
+				return -1;
+			}
+			pass = argv[i+1];
+			i++;
+		} else if (strcmp(argv[i], "-k") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a DES key\n");
+				return -1;
+			}
+			ret = sscanf(argv[i+1], "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[7], key[8], key[9], key[10], key[11], key[12], key[13]);
+			if (ret != 14) {
+				printf("Provided key is not a DES key\n");
+				return -1;
+			}
+			i++;
+		}  else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
 		}
@@ -180,6 +204,9 @@ int main(int argc, char *argv[]) {
 		printf("\t-c [configfile]\tVCAS configfile [default: vmcam.ini]\n");
 		printf("\t-pn [Newcamd port]\tSet Newcamd port number or 0 to disable [default: 15050]\n");
 		printf("\t-pc [CS378x port]\tSet CS378x port number or 0 to disable [default: 15080]\n");
+		printf("\t-u [username]\tSet allowed user on server [default: user]\n");
+		printf("\t-p [password]\tSet password for server [default: pass]\n");
+		printf("\t-k [DES key]\tSet DES key for Newcamd [default: 0102030405060708091011121314]\n");
 		printf("\t-d [debug level]\tSet debug level [default: 0]\n");
 		return -1;
 	}
