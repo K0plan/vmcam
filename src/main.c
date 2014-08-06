@@ -132,10 +132,9 @@ int main(int argc, char *argv[]) {
 	char* company = 0;
 	char* dir = 0;
 	unsigned int interval = 0;
+	int debug;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
-
-	debug_level = 0;
 
 	printf("VMCam - VCAS SoftCAM for IPTV\n");
 
@@ -173,7 +172,7 @@ int main(int argc, char *argv[]) {
 				printf("Need to provide a debug level\n");
 				return -1;
 			}
-			debug_level = atoi(argv[i+1]);
+			debug = atoi(argv[i+1]);
 			i++;
 		} else if (strcmp(argv[i], "-u") == 0) {
 			if (i+1 >= argc) {
@@ -301,6 +300,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	load_config(config);
+	debug_level = debug;
 	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval, dir);
 
 	if ((ret = init_vmapi(iface, force_mac, mac)) == EXIT_FAILURE)
