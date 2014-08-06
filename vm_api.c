@@ -483,7 +483,7 @@ int API_GetAllChannelKeys() {
 	return -1;
 }
 
-int init_vmapi(char* config, char* iface) {
+int init_vmapi(char* config, char* iface, int force_mac, unsigned char* mac) {
 	// Init SSL Client
 	ssl_client_init();
 
@@ -495,7 +495,10 @@ int init_vmapi(char* config, char* iface) {
 	
 	// Get client ID and MAC
 	load_clientid();
-	load_MAC(iface);
+	if (force_mac)
+		clientMAC = mac;
+	else
+		load_MAC(iface);
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {

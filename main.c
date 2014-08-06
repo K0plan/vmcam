@@ -117,10 +117,12 @@ int main(int argc, char *argv[]) {
 	int i;
 	int usage = 0;
 	int sock;
+	int force_mac = 0;
 	unsigned int port_cs378x = 15080;
 	unsigned int port_newcamd = 15050;
 	char* iface = "eth0";
 	char* config = "vmcam.ini";
+	unsigned char* mac;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
 
@@ -189,7 +191,15 @@ int main(int argc, char *argv[]) {
 				return -1;
 			}
 			i++;
-		}  else {
+		} else if (strcmp(argv[i], "-m") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a mac address\n");
+				return -1;
+			}
+			force_mac = 1;
+			mac = argv[i+1];
+			i++;
+		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
 		}
@@ -211,11 +221,11 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	if ((ret = init_vmapi(config, iface)) == EXIT_FAILURE)
+	if ((ret = init_vmapi(config, iface, force_mac, mac)) == EXIT_FAILURE)
 		return ret;
 	
-	if ((ret = load_keyblock()) == EXIT_FAILURE)
-		return ret;
+	//if ((ret = load_keyblock()) == EXIT_FAILURE)
+	//	return ret;
 
 	if (port_newcamd > 0) {
 		newcamd_handler.sock = open_socket("Newcamd", port_newcamd);

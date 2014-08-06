@@ -19,5 +19,5 @@
 
 unsigned int key_interval;
 
-int init_vmapi(char* config, char* iface);
+int init_vmapi(char* config, char* iface, int force_mac, unsigned char* mac);
 int load_keyblock(void);
