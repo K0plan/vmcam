@@ -87,7 +87,7 @@ void *handle_client_cs378x(void* client_fd) {
 	close(fd);
 }
 
-int open_socket(char* interface, int port) {
+int open_socket(char* interface, char* host, int port) {
 	int one = 1;
 	struct sockaddr_in svr_addr;
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -98,12 +98,12 @@ int open_socket(char* interface, int port) {
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
 
 	svr_addr.sin_family = AF_INET;
-	svr_addr.sin_addr.s_addr = INADDR_ANY;
+	inet_aton(host, &svr_addr.sin_addr);
 	svr_addr.sin_port = htons(port);
 
 	if (bind(sock, (struct sockaddr *) &svr_addr, sizeof(svr_addr)) == -1) {
 		close(sock);
-		err(1, "[VMCAM] Can't bind on port %d for %s", port, interface);
+		err(1, "[VMCAM] Can't bind on %s:%d for %s", host, port, interface);
 	}
 
 	listen(sock, 5);
@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
 	unsigned int port_newcamd = 15050;
 	char* iface = "eth0";
 	char* config = "vmcam.ini";
+	char* host = "0.0.0.0";
 	unsigned char* mac;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
@@ -199,6 +200,13 @@ int main(int argc, char *argv[]) {
 			force_mac = 1;
 			mac = argv[i+1];
 			i++;
+		} else if (strcmp(argv[i], "-l") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide a ip address\n");
+				return -1;
+			}
+			host = argv[i+1];
+			i++;
 		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
@@ -212,6 +220,7 @@ int main(int argc, char *argv[]) {
 		printf("Usage: vmcam -i [interface] -c [configfile] %d\n");
 		printf("\t-i [interface]\tName of interface to connect to server [default: eth0]\n");
 		printf("\t-c [configfile]\tVCAS configfile [default: vmcam.ini]\n");
+		printf("\t-l [ip addres]\tListen on ip address [default: 0.0.0.0]\n");
 		printf("\t-pn [Newcamd port]\tSet Newcamd port number or 0 to disable [default: 15050]\n");
 		printf("\t-pc [CS378x port]\tSet CS378x port number or 0 to disable [default: 15080]\n");
 		printf("\t-u [username]\tSet allowed user on server [default: user]\n");
@@ -224,17 +233,17 @@ int main(int argc, char *argv[]) {
 	if ((ret = init_vmapi(config, iface, force_mac, mac)) == EXIT_FAILURE)
 		return ret;
 	
-	//if ((ret = load_keyblock()) == EXIT_FAILURE)
-	//	return ret;
+	if ((ret = load_keyblock()) == EXIT_FAILURE)
+		return ret;
 
 	if (port_newcamd > 0) {
-		newcamd_handler.sock = open_socket("Newcamd", port_newcamd);
+		newcamd_handler.sock = open_socket("Newcamd", host, port_newcamd);
 		newcamd_handler.callback = handle_client_newcamd;
 		pthread_create(&thread, NULL, handle_client, &newcamd_handler);
 	}
 
 	if (port_cs378x > 0) {
-		cs378x_handler.sock = open_socket("CS378x", port_cs378x);
+		cs378x_handler.sock = open_socket("CS378x", host, port_cs378x);
 		cs378x_handler.callback = handle_client_cs378x;
 		pthread_create(&thread, NULL, handle_client, &cs378x_handler);
 	}
