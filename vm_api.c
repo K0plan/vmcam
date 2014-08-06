@@ -85,6 +85,26 @@ char * f_rsa_private_key = "priv_key.pem";
 char * f_keyblock = "keyblock";
 char * f_ClientId = "clientid.dat";
 
+void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval) {
+	if (vcas_address != 0)
+		strncpy(vcasServerAddress, vcas_address, 30);
+
+	if (vks_address != 0)
+		strncpy(vksServerAddress, vks_address, 30);
+
+	if (company != 0)
+		strncpy(api_company, company, 30);
+
+	if (vcas_port > 0)
+		VCAS_Port_SSL = vcas_port;
+
+	if (vks_port > 0)
+		VKS_Port_SSL = vks_port;
+
+	if (interval > 0)
+		key_interval = interval;
+}
+
 int load_config(char* f_config) {
 	FILE * fp;
 	int scan;
@@ -110,7 +130,7 @@ int load_config(char* f_config) {
 			}
 		}
 	} else {
-		RETURN_ERR("[API] Unable to read configfile");
+		RETURN_ERR("Unable to read configfile");
 	}
 	return -1;
 	
@@ -483,15 +503,11 @@ int API_GetAllChannelKeys() {
 	return -1;
 }
 
-int init_vmapi(char* config, char* iface, int force_mac, unsigned char* mac) {
+int init_vmapi(char* iface, int force_mac, unsigned char* mac) {
 	// Init SSL Client
 	ssl_client_init();
 
 	int exit_code = EXIT_FAILURE;
-	
-	if (load_config(config) == 0) {
-		RETURN_ERR("[API] Check your configuration file!");
-	}
 	
 	// Get client ID and MAC
 	load_clientid();
@@ -502,28 +518,28 @@ int init_vmapi(char* config, char* iface, int force_mac, unsigned char* mac) {
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {
-		RETURN_ERR("[API] Check your port configuration!");	
+		RETURN_ERR("Check your port configuration!");
 	}
 	
 	if(strlen(vcasServerAddress) == 0) {
-		RETURN_ERR("[API] Check your VCAS server ip!");
+		RETURN_ERR("Check your VCAS server ip!");
 	}
 	
 	if(strlen(vksServerAddress) == 0) {
-		RETURN_ERR("[API] Check your VKS server ip!");
+		RETURN_ERR("Check your VKS server ip!");
 	}
 
 	if(strlen(api_clientID) != 56) {
 		remove(f_ClientId);
-		RETURN_ERR("[API] Incorrect clientID length, length should be 56");	
+		RETURN_ERR("Incorrect clientID length, length should be 56");
 	}
 
 	if(strlen(clientMAC) != 12) {
-		RETURN_ERR("[API] Incorrect MAC length, format should be: \"615243342516\"");
+		RETURN_ERR("Incorrect MAC length, format should be: \"615243342516\"");
 	}
 
 	if(strlen(api_company) == 0) {
-		RETURN_ERR("[API] Please add your company name to the configuration");
+		RETURN_ERR("Please add your company name to the configuration");
 	}
 
 	return EXIT_SUCCESS;
@@ -547,7 +563,7 @@ retry:
 	// Get Session key from server
 	while(API_GetSessionKey() != 0) {
 		if (t > 2) {
-			RETURN_ERR("[API] GetSessionKey failed");
+			RETURN_ERR("GetSessionKey failed");
 		}
 		sleep(1);
 		t++;
@@ -558,10 +574,10 @@ retry:
 	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
 	if (generate_ski_string() < 0) {
 		if (API_GetCertificate() < 0) {
-			RETURN_ERR("[API] Unable to get Signed Certificate");
+			RETURN_ERR("Unable to get Signed Certificate");
 		}
 		if (generate_ski_string() < 0) {
-			RETURN_ERR("[API] Got a Signed Certificate but unable to get SKI");
+			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
 		}
 	}
 

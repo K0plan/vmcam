@@ -118,12 +118,19 @@ int main(int argc, char *argv[]) {
 	int usage = 0;
 	int sock;
 	int force_mac = 0;
+	int initial = 1;
 	unsigned int port_cs378x = 15080;
 	unsigned int port_newcamd = 15050;
 	char* iface = "eth0";
 	char* config = "vmcam.ini";
 	char* host = "0.0.0.0";
-	unsigned char* mac;
+	unsigned char* mac = 0;
+	unsigned int port_vcas = 0;
+	unsigned int port_vks = 0;
+	char* server_vcas = 0;
+	char* server_vks = 0;
+	char* company = 0;
+	unsigned int interval = 0;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
 
@@ -207,6 +214,50 @@ int main(int argc, char *argv[]) {
 			}
 			host = argv[i+1];
 			i++;
+		} else if (strcmp(argv[i], "-nointial") == 0) {
+			initial = 0;
+		} else if (strcmp(argv[i], "-ps") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide the VCAS port number\n");
+				return -1;
+			}
+			port_vcas = atoi(argv[i+1]);
+			i++;
+		} else if (strcmp(argv[i], "-pk") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide the VKS port number\n");
+				return -1;
+			}
+			port_vks = atoi(argv[i+1]);
+			i++;
+		} else if (strcmp(argv[i], "-sk") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide the VKS address\n");
+				return -1;
+			}
+			server_vks = argv[i+1];
+			i++;
+		} else if (strcmp(argv[i], "-ss") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide the VCAS address\n");
+				return -1;
+			}
+			server_vcas = argv[i+1];
+			i++;
+		} else if (strcmp(argv[i], "-C") == 0) {
+			if (i+1 >= argc) {
+				printf("Need to provide the company name\n");
+				return -1;
+			}
+			company = argv[i+1];
+			i++;
+		} else if (strcmp(argv[i], "-t") == 0) {
+			if (i+1 >= argc) {
+				printf("Need interval of key retrieval updates\n");
+				return -1;
+			}
+			interval = atoi(argv[i+1]);
+			i++;
 		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
@@ -229,12 +280,17 @@ int main(int argc, char *argv[]) {
 		printf("\t-d [debug level]\tSet debug level [default: 0]\n");
 		return -1;
 	}
+	
+	load_config(config);
+	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval);
 
-	if ((ret = init_vmapi(config, iface, force_mac, mac)) == EXIT_FAILURE)
+	if ((ret = init_vmapi(iface, force_mac, mac)) == EXIT_FAILURE)
 		return ret;
 	
-	if ((ret = load_keyblock()) == EXIT_FAILURE)
-		return ret;
+	if (initial) {
+		if ((ret = load_keyblock()) == EXIT_FAILURE)
+			return ret;
+	}
 
 	if (port_newcamd > 0) {
 		newcamd_handler.sock = open_socket("Newcamd", host, port_newcamd);
