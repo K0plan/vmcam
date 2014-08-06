@@ -22,8 +22,8 @@
 #include "log.h"
 
 #define RETURN_NULL(x) if ((x)==NULL) exit (1)
-#define RETURN_ERR(err,s) if ((err)==-1) { LOG(ERROR, "[tcp-client] %s", s); return(-1); }
-#define RETURN_TCP(err) if ((err)==-1) { LOG(ERROR, "[tcp-client] error: %d", err); return(-1);
+#define RETURN_ERR(err,s) if (err<0) { LOG(ERROR, "[tcp-client] %s", s); return(-1); }
+#define RETURN_TCP(err) if (err<0) { LOG(ERROR, "[tcp-client] error: %d", err); return(-1);
 
 int tcp_client_send(unsigned char *msg, uint16_t msglen,
 		unsigned char*buf_received, int responsebuflen, const char *s_addr,
