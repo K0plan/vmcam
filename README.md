@@ -47,6 +47,7 @@ To clone the repository issue the following commands:
 
 ## vmcam.ini
 In vmcam.ini you can use the following configuration options
+
 	COMPANY=[Company name] 
 	SERVERADDRESS=[VCAS address]
 	SERVERPORT=[VCAS port]
