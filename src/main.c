@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
 	unsigned int port_cs378x = 15080;
 	unsigned int port_newcamd = 15050;
 	char* iface = "eth0";
-	char* config = "vmcam.ini";
+	char* config = "/etc/vmcam.ini";
 	char* host = "0.0.0.0";
 	unsigned char* mac = 0;
 	unsigned int port_vcas = 0;
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 
 	if (usage) {
 		printf("Usage: vmcam [options]\n\n");
-		printf("\t-e [directory]\t\tDirectory to store files\n");
+		printf("\t-e [directory]\t\tDirectory to store files [default: /var/cache/vmcam]\n");
 		printf("\t-d [debug level]\tSet debug level [default: 0]\n\n");
 		printf("  VCAS/VKS:\n\n");
 		printf("\t-c [configfile]\t\tVCAS configfile [default: vmcam.ini]\n");

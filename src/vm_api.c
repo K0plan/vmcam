@@ -110,10 +110,10 @@ void set_dir(char* dir) {
 		exit(-1);
 	}
 
-	f_signedcert = strconcat(dir, "SignedCert.der");
-	f_rsa_private_key = strconcat(dir, "priv_key.pem");
-	f_keyblock = strconcat(dir, "keyblock");
-	f_ClientId = strconcat(dir, "clientid.dat");
+	f_signedcert = strconcat(dir, "/SignedCert.der");
+	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
+	f_keyblock = strconcat(dir, "/keyblock");
+	f_ClientId = strconcat(dir, "/clientid.dat");
 }
 
 void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir) {
@@ -164,21 +164,20 @@ int load_config(char* f_config) {
 					sscanf(value, "%30[^/]/%d", vksServerAddress, &VKS_Port_SSL);
 				} else if (strcasecmp(key, "MIN_KEY_RETRY_INTERVAL") == 0) {
 					key_interval = atoi(value);
+				} else if (strcasecmp(key, "ERRORLEVEL") == 0) {
+					debug_level = atoi(value);
 				}
 			}
 		}
 	} else {
-		RETURN_ERR("Unable to read configfile");
+		LOG(ERROR, "[API] Unable to read configfile %s", f_config);
+		return -1;
 	}
 
 	if (!path)
-		set_dir("");
+		set_dir("/var/cache/vmcam");
 
 	return -1;
-	
-cleanup:
-
-	return 0;
 }
 
 int load_clientid() {

@@ -2,7 +2,7 @@
 VMCam is a VCAS SoftCAM for IPTV.
 
 ## Configuration
-Configuration of VCAS can be put in vmcam.ini
+Configuration of VCAS can be put in /etc/vmcam.ini or specified in arguments
 
 ## Development
 The development is done using git. VMCam repository is hosted
@@ -15,6 +15,7 @@ To clone the repository issue the following commands:
 	$ ./configure
 	$ make
 	$ make install
+	$ mkdir /var/cache/vmcam
 	
 ## Usage
 	vmcam [options]
