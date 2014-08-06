@@ -36,6 +36,8 @@
 
 #define touInt16(__data) (((&__data)[1] << 8) | __data)
 
+char * f_keyblock;
+
 time_t parse_ts(unsigned char * data) {
 	struct tm t;
 	time_t t_of_day;
@@ -62,9 +64,9 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 	time_t time_now, time_mkey1, time_mkey2;
 	char valid_till_str[64];
 	char valid_till_str2[64];
-	fp = fopen("keyblock", "r");
+	fp = fopen(f_keyblock, "r");
 	if (!fp) {
-		LOG(ERROR, "[KEYBLOCK] Could not open file");
+		LOG(ERROR, "[KEYBLOCK] Could not open file %s", f_keyblock);
 		return (0);
 	}
 	LOG(INFO, "[KEYBLOCK] Find control word for Channel %d table 0x%02X", channel, table);
