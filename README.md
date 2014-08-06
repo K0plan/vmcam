@@ -12,7 +12,9 @@ To clone the repository issue the following commands:
 
 	$ git clone git://github.com/irtimmer/vmcam.git
 	$ cd vmcam
+	$ ./configure
 	$ make
+	$ make install
 	
 ## Usage
 	vmcam [options]
