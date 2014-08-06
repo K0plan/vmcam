@@ -130,6 +130,7 @@ int main(int argc, char *argv[]) {
 	char* server_vcas = 0;
 	char* server_vks = 0;
 	char* company = 0;
+	char* dir = 0;
 	unsigned int interval = 0;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
@@ -258,6 +259,13 @@ int main(int argc, char *argv[]) {
 			}
 			interval = atoi(argv[i+1]);
 			i++;
+		} else if (strcmp(argv[i], "-e") == 0) {
+			if (i+1 >= argc) {
+				printf("Need name of directory\n");
+				return -1;
+			}
+			dir = argv[i+1];
+			i++;
 		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
@@ -282,7 +290,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	load_config(config);
-	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval);
+	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval, dir);
 
 	if ((ret = init_vmapi(iface, force_mac, mac)) == EXIT_FAILURE)
 		return ret;

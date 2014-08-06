@@ -19,7 +19,7 @@
 
 unsigned int key_interval;
 
-void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval);
+void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir);
 int load_config(char* f_config);
 int init_vmapi(char* iface, int force_mac, unsigned char* mac);
 int load_keyblock(void);

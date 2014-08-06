@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <net/if.h>   //ifreq
 
 #include "vm_api.h"
@@ -79,13 +80,43 @@ uchar * timestamp;
 char * ski;
 
 // Files used
-char * f_signedcert = "SignedCert.der";
-char * f_csr = "csr.pem";
-char * f_rsa_private_key = "priv_key.pem";
-char * f_keyblock = "keyblock";
-char * f_ClientId = "clientid.dat";
+char * f_signedcert;
+char * f_csr;
+char * f_rsa_private_key;
+char * f_keyblock;
+char * f_ClientId;
 
-void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval) {
+char* strconcat(char* str1, char* str2) {
+	if (strlen(str1) == 0)
+		return str2;
+
+	int length = strlen(str1) + strlen(str2);
+	char* result = malloc(length);
+	if (result == NULL) {
+		LOG(ERROR, "[API] Not enough memory");
+		exit(-1);
+	}
+
+	strcpy(result, str1);
+	strcat(result, str2);
+	return result;
+}
+
+void set_dir(char* dir) {
+	struct stat st = {0};
+
+	if (stat(dir, &st) == -1) {
+		LOG(ERROR, "[API] Directory %s doesn't exist", dir);
+		exit(-1);
+	}
+
+	f_signedcert = strconcat(dir, "SignedCert.der");
+	f_rsa_private_key = strconcat(dir, "priv_key.pem");
+	f_keyblock = strconcat(dir, "keyblock");
+	f_ClientId = strconcat(dir, "clientid.dat");
+}
+
+void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir) {
 	if (vcas_address != 0)
 		strncpy(vcasServerAddress, vcas_address, 30);
 
@@ -103,11 +134,15 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 
 	if (interval > 0)
 		key_interval = interval;
+
+	if (dir != 0)
+		set_dir(dir);
 }
 
 int load_config(char* f_config) {
 	FILE * fp;
 	int scan;
+	int path = 0;
 	key_interval = 300;
 	
 	char key[31], value[31];
@@ -122,6 +157,9 @@ int load_config(char* f_config) {
 					strncpy(vcasServerAddress, value, 30);
 				} else if (strcasecmp(key, "SERVERPORT") == 0) {
 					VCAS_Port_SSL = atoi(value);
+				} else if (strcasecmp(key, "STOREPATH") == 0) {
+					path = 1;
+					set_dir(value);
 				} else if (strcasecmp(key, "PREFERRED_VKS") == 0) {
 					sscanf(value, "%30[^/]/%d", vksServerAddress, &VKS_Port_SSL);
 				} else if (strcasecmp(key, "MIN_KEY_RETRY_INTERVAL") == 0) {
@@ -132,6 +170,10 @@ int load_config(char* f_config) {
 	} else {
 		RETURN_ERR("Unable to read configfile");
 	}
+
+	if (!path)
+		set_dir("");
+
 	return -1;
 	
 cleanup:
@@ -163,8 +205,10 @@ int load_clientid() {
 	}
 	LOG(DEBUG, "[API] Your ClientID is: %s", api_clientID);
 	fp = fopen(f_ClientId, "w");
-	fwrite(api_clientID, j, 1, fp);
-	fclose(fp);
+	if (fp) {
+		fwrite(api_clientID, j, 1, fp);
+		fclose(fp);
+	}
 	return 0;
 }
 
