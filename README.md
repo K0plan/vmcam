@@ -18,16 +18,17 @@ To clone the repository issue the following commands:
 	vmcam -i [interface] -c [configfile]
 	-i [interface]	Name of interface to connect to server [default: eth0]\n");
 	-c [configfile]	VCAS configfile [default: vmcam.ini]
-	-C [camd interface] Set CAMD network protocol (CS378X / NEWCAMD) [default: CS378X]
+	-pn [Newcamd port] Set Newcamd port number or 0 to disable [default: 15050]
+	-pc [CS378x port] Set CS378x port number or 0 to disable [default: 15080]
 	
 ## CAMD35-TCP/CS378x
 Clients need to be changed to use AES instead of DES3
-- Port: 8282
+- Port: 15080
 - Username: user
 - Password: pass
 
 ## NEWCAMD
-- Port 8282
+- Port 15050
 - Username: user
 - Password: pass
 - DES key: 0102030405060708091011121314
