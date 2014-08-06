@@ -44,7 +44,17 @@ To clone the repository issue the following commands:
 	-u [username]  Set allowed user on server [default: user]
 	-p [password]  Set password for server [default: pass]
 	-k [DES key]  Set DES key for Newcamd [default: 0102030405060708091011121314]
-	
+
+## vmcam.ini
+In vmcam.ini you can use the following configuration options
+	COMPANY=[Company name] 
+	SERVERADDRESS=[VCAS address]
+	SERVERPORT=[VCAS port]
+	STOREPATH=[directory]
+	PREFERRED_VKS=[VKS address]:[VKS port]
+	MIN_KEY_RETRY_INTERVAL=[interval]
+	ERRORLEVEL=[debug level]
+
 ## CAMD35-TCP/CS378x
 Clients need to be changed to use AES instead of DES3
 - Port: 15080
