@@ -23,9 +23,11 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#include "log.h"
+
 #define RETURN_NULL(x) if ((x)==NULL) exit (1)
-#define RETURN_ERR(err,s) if ((err)==-1) { printf("[ssl-client] %s\n", s); return(-1); }
-#define RETURN_SSL(err) if ((err)==-1) { printf("[ssl-client] error: %d\n", err); return(-1); }
+#define RETURN_ERR(err,s) if ((err)==-1) { LOG(ERROR, "[ssl-client] %s\n", s); return(-1); }
+#define RETURN_SSL(err) if ((err)==-1) { LOG(ERROR, "[ssl-client] error: %d\n", err); return(-1); }
 
 //static int verify_callback(int ok, X509_STORE_CTX *ctx);
 
@@ -127,28 +129,28 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 	RETURN_SSL(err);
 
 	/* Informational output (optional) */
-	printf("SSL connection using %s\n", SSL_get_cipher(ssl_sock));
+	LOG(DEBUG, "[ssl-client] SSL connection using %s", SSL_get_cipher(ssl_sock));
 
 	/* Get the server's certificate (optional) */
 	server_cert = SSL_get_peer_certificate(ssl_sock);
 
 	if (server_cert != NULL) {
-		printf("Server certificate:\n");
+		LOG(VERBOSE, "[ssl-client] Server certificate:");
 
 		str = X509_NAME_oneline(X509_get_subject_name(server_cert), 0, 0);
 		RETURN_NULL(str);
-		printf("\t subject: %s\n", str);
+		LOG(VERBOSE, "\t subject: %s", str);
 		free(str);
 
 		str = X509_NAME_oneline(X509_get_issuer_name(server_cert), 0, 0);
 		RETURN_NULL(str);
-		printf("\t issuer: %s\n", str);
+		LOG(VERBOSE, "\t issuer: %s", str);
 		free(str);
 
 		X509_free(server_cert);
 
 	} else
-		printf("The SSL server does not have certificate.\n");
+		LOG(DEBUG, "[ssl-client] The SSL server does not have certificate.");
 
 	/*-------- DATA EXCHANGE - send message and receive reply. -------*/
 	/* Send data to the SSL server */
@@ -164,7 +166,7 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 
 	datarecv = err;
 
-	printf("[ssl-client] Received %d\n", datarecv);
+	LOG(DEBUG, "[ssl-client] Received %d", datarecv);
 
 	/*--------------- SSL closure ---------------*/
 	/* Shutdown the client side of the SSL connection */

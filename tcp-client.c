@@ -19,9 +19,11 @@
 #include <arpa/inet.h>
 #endif
 
+#include "log.h"
+
 #define RETURN_NULL(x) if ((x)==NULL) exit (1)
-#define RETURN_ERR(err,s) if ((err)==-1) { printf("[tcp-client] %s\n", s); return(-1); }
-#define RETURN_TCP(err) if ((err)==-1) { printf("[tcp-client] error: %d\n", err); return(-1);
+#define RETURN_ERR(err,s) if ((err)==-1) { LOG(ERROR, "[tcp-client] %s", s); return(-1); }
+#define RETURN_TCP(err) if ((err)==-1) { LOG(ERROR, "[tcp-client] error: %d", err); return(-1);
 
 int tcp_client_send(unsigned char *msg, uint16_t msglen,
 		unsigned char*buf_received, int responsebuflen, const char *s_addr,
@@ -69,7 +71,7 @@ int tcp_client_send(unsigned char *msg, uint16_t msglen,
 	if (err < 0)
 		RETURN_ERR(err, "ERROR reading from socket");
 
-	printf("[tcp-client] Received %d\n", received);
+	LOG(DEBUG, "[tcp-client] Received %d", received);
 
 	/* Terminate communication on a socket */
 	err = close(sock);
