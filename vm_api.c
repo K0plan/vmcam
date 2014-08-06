@@ -133,7 +133,7 @@ int load_clientid() {
 			return 0;
 		}
 	}
-	LOG(INFO, "[API] No ClientID found, generating ClientID");
+	LOG(DEBUG, "[API] No ClientID found, generating ClientID");
 	if (!RAND_bytes(buf, 28)) {
 		return -1;
 	}
@@ -141,7 +141,7 @@ int load_clientid() {
 	for (i = 0; i < 28; i++) {
 		j += sprintf(api_clientID + j, "%02X", buf[i] & 0xFF);
 	}
-	LOG(INFO, "[API] Your ClientID is: %s", api_clientID);
+	LOG(DEBUG, "[API] Your ClientID is: %s", api_clientID);
 	fp = fopen(f_ClientId, "w");
 	fwrite(api_clientID, j, 1, fp);
 	fclose(fp);
@@ -171,7 +171,7 @@ void load_MAC(char* iface) {
 	sprintf(clientMAC, "%.2x%.2x%.2x%.2x%.2x%.2x", mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	clientMAC[12] = 0;
-	LOG(INFO, "[API] Detected MAC: %s for interface: %s", clientMAC, iface);
+	LOG(DEBUG, "[API] Detected MAC: %s for interface: %s", clientMAC, iface);
 	return;
 }
 
@@ -210,7 +210,7 @@ void load_rsa_pkey(RSA ** rsa_priv_key) {
 	// Read PEM Private Key
 	fp = fopen(f_rsa_private_key, "r");
 	if (fp) {
-		LOG(INFO, "[API] Private key found");
+		LOG(DEBUG, "[API] Private key found");
 		*rsa_priv_key = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
 		fclose(fp);
 	} else {
@@ -363,7 +363,7 @@ int API_GetSessionKey() {
 	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
 			api_msgformat, api_clientID, api_company, clientMAC);
 			
-	printf("[API] Requesting Session Key: %s\n", msg);
+	LOG(DEBUG, "[API] Requesting Session Key: %s\n", msg);
 
 	if(ssl_client_send(msg, msglen, response_buffer, 64, vcasServerAddress,
 	VCAS_Port_SSL) < 45) {
@@ -373,7 +373,7 @@ int API_GetSessionKey() {
 	timestamp = calloc(20, 1);
 	memcpy(session_key, response_buffer + 4, 16);
 	memcpy(timestamp, response_buffer + 20, 20);
-	printf("Session key obtained, timestamp: %s\n", timestamp);
+	LOG(DEBUG, "[API] Session key obtained, timestamp: %s\n", timestamp);
 	return 0;
 }
 
@@ -389,10 +389,10 @@ int API_GetCertificate() {
 	long long unsigned int t64 = (long long unsigned int) time(NULL);
 
 	/******* Generate the CSR *******/
-	LOG(INFO, "[API] Generating CSR");
+	LOG(DEBUG, "[API] Generating CSR");
 	szEmail = calloc(64, 1);
 	sprintf(szEmail, "%s.%llu@Verimatrix.com", clientMAC, t64);
-	LOG(INFO, "[API] Using email: %s", szEmail);
+	LOG(DEBUG, "[API] Using email: %s", szEmail);
 	generate_csr(&csr);
 
 	/******* Generate the request string *******/
