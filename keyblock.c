@@ -53,8 +53,8 @@ time_t parse_ts(unsigned char * data) {
 
 int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 	FILE *fp;
-	char token[108];
-	char * mkey;
+	unsigned char token[108];
+	unsigned char * mkey;
 	uint32_t t = 0;
 	AES_KEY aesmkey;
 	unsigned char table = ECM[0];
