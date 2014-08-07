@@ -236,7 +236,7 @@ void load_MAC(char* iface) {
 	return;
 }
 
-void generate_rsa_pkey() {
+int generate_rsa_pkey() {
 	FILE * fp;
 	RSA * rsa_priv_key;
 	const int kBits = 1024;
@@ -258,27 +258,34 @@ void generate_rsa_pkey() {
 	if (fp) {
 		fwrite(pem_key, keylen, 1, fp);
 		fclose(fp);
+	} else {
+		LOG(ERROR, "[API] RSA key generation failed, could not write key");
+		return -1;
 	}
 
 	LOG(VERBOSE, "[API] Private key created:\n%s", pem_key);
 
 	BIO_free_all(bio);
 	free(pem_key);
+	return 0;
 }
 
-void load_rsa_pkey(RSA ** rsa_priv_key) {
+int load_rsa_pkey(RSA ** rsa_priv_key) {
 	FILE *fp;
 	// Read PEM Private Key
 	fp = fopen(f_rsa_private_key, "r");
 	if (fp) {
 		LOG(DEBUG, "[API] Private key found");
 		*rsa_priv_key = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
-		fclose(fp);
 	} else {
-		generate_rsa_pkey();
+		if (generate_rsa_pkey() < 0)
+			return -1;
+
 		fp = fopen(f_rsa_private_key, "r");
 		*rsa_priv_key = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
 	}
+	fclose(fp);
+	return 0;
 }
 
 int generate_signed_hash(uchar ** signed_hash) {
@@ -288,7 +295,9 @@ int generate_signed_hash(uchar ** signed_hash) {
 	*signed_hash = calloc(257, 1);
 	MD5(timestamp, 19, md5hash);
 	unsigned int n = 0;
-	load_rsa_pkey(&rsa_priv_key);
+	if (load_rsa_pkey(&rsa_priv_key) < 0)
+		return -1;
+
 	RSA_sign(NID_md5, md5hash, MD5_DIGEST_LENGTH, buf, &n, rsa_priv_key);
 	int i, j = 0;
 	for (i = 0; i < 128; i++) {
@@ -353,7 +362,9 @@ int generate_csr(char** pem_csr) {
 	}
 
 	// 4. set public key of x509 req
-	load_rsa_pkey(&rsa_priv_key);
+	if (load_rsa_pkey(&rsa_priv_key) < 0)
+		goto free_all;
+
 	pKey = EVP_PKEY_new();
 	EVP_PKEY_assign_RSA(pKey, rsa_priv_key);
 
@@ -506,7 +517,9 @@ int API_GetAllChannelKeys() {
 
 	plainlen = strlen(api_company) + 39;
 
-	generate_signed_hash(&signedhash);
+	if (generate_signed_hash(&signedhash) < 0)
+		return -1;
+
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~GetAllChannelKeys~%s~%s~%s~%s~ ~ ~", api_msgformat,
 			api_company, timestamp, clientMAC, api_clientID, api_company, ski,
