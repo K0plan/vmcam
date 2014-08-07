@@ -310,7 +310,7 @@ int generate_csr(char** pem_csr) {
 	BIO *bio = NULL;
 
 	char * CN = calloc(64, 1);
-	LOG(DEBUG, "[API] CN %s/%s", szCommon, szEmail);
+	sprintf(CN, "%s/%s", szCommon, szEmail);
 
 	// 2. set version of x509 req
 	x509_req = X509_REQ_new();
