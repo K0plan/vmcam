@@ -134,6 +134,9 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 
 	if (stat(f_dir, &st) == -1) {
 		LOG(ERROR, "[API] Directory %s doesn't exist", f_dir);
+	} else if (access(f_dir, W_OK) != 0) {
+		LOG(ERROR, "[API] Directory %s isn't writable", f_dir);
+		exit(-1);
 	}
 }
 
@@ -259,11 +262,11 @@ int generate_rsa_pkey() {
 		fwrite(pem_key, keylen, 1, fp);
 		fclose(fp);
 	} else {
-		LOG(ERROR, "[API] RSA key generation failed, could not write key");
+		LOG(ERROR, "[API] RSA key generation failed, could not write key to %s", f_rsa_private_key);
 		return -1;
 	}
 
-	LOG(VERBOSE, "[API] Private key created:\n%s", pem_key);
+	LOG(VERBOSE, "[API] Private key created:%s", pem_key);
 
 	BIO_free_all(bio);
 	free(pem_key);
@@ -394,7 +397,7 @@ int generate_csr(char** pem_csr) {
 		fclose(fp);
 	}
 
-	LOG(VERBOSE, "[API] CSR created:\n%s", *pem_csr);
+	LOG(VERBOSE, "[API] CSR created:%s", *pem_csr);
 	// 6. free
 	free_all: X509_REQ_free(x509_req);
 	BIO_free_all(bio);
@@ -435,7 +438,7 @@ int API_GetSessionKey() {
 	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
 			api_msgformat, api_clientID, api_company, clientMAC);
 			
-	LOG(DEBUG, "[API] Requesting Session Key: %s\n", msg);
+	LOG(DEBUG, "[API] Requesting Session Key: %s", msg);
 
 	if(ssl_client_send(msg, msglen, response_buffer, 64, vcasServerAddress,
 	VCAS_Port_SSL) < 45) {
@@ -445,7 +448,7 @@ int API_GetSessionKey() {
 	timestamp = calloc(20, 1);
 	memcpy(session_key, response_buffer + 4, 16);
 	memcpy(timestamp, response_buffer + 20, 20);
-	LOG(DEBUG, "[API] Session key obtained, timestamp: %s\n", timestamp);
+	LOG(DEBUG, "[API] Session key obtained, timestamp: %s", timestamp);
 	return 0;
 }
 
@@ -551,7 +554,7 @@ int API_GetAllChannelKeys() {
 		free(response_buffer);
 		return 0;
 	} else {
-		LOG(ERROR, "[API] GetAllChannelKeys failed, could not write keyblock");	
+		LOG(ERROR, "[API] GetAllChannelKeys failed, could not write keyblock to %s", f_keyblock);	
 	}
 	free(response_buffer);
 	return -1;
