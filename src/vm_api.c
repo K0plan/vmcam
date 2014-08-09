@@ -98,7 +98,6 @@ char* strconcat(char* str1, char* str2) {
 
 	strcpy(result, str1);
 	strcat(result, str2);
-	printf("%s + %s = %s\n", str1, str2, result);
 	return result;
 }
 
