@@ -41,6 +41,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <net/if.h>   //ifreq
+#include <net/if_arp.h>
 
 #include "vm_api.h"
 #include "ssl-client.h"
@@ -85,10 +86,10 @@ char * f_csr;
 char * f_rsa_private_key;
 char * f_keyblock;
 char * f_ClientId;
-char f_dir[256];
+char f_dir[256] = {0};
 
 char* strconcat(char* str1, char* str2) {
-	int length = strlen(str1) + strlen(str2);
+	int length = strlen(str1) + strlen(str2) + 1;
 	char* result = malloc(length);
 	if (result == NULL) {
 		LOG(ERROR, "[API] Not enough memory");
@@ -97,10 +98,18 @@ char* strconcat(char* str1, char* str2) {
 
 	strcpy(result, str1);
 	strcat(result, str2);
+	printf("%s + %s = %s\n", str1, str2, result);
 	return result;
 }
 
 void set_dir(char* dir) {
+	if (f_dir[0] != 0) {
+		free(f_signedcert);
+		free(f_rsa_private_key);
+		free(f_keyblock);
+		free(f_ClientId);
+	}
+
 	f_signedcert = strconcat(dir, "/SignedCert.der");
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
@@ -221,13 +230,25 @@ void load_MAC(char* iface) {
 	clientMAC = calloc(13, 1);
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd==-1) {
+		LOG(ERROR, "[API] %s - %s", iface, strerror(errno));
+		exit(-1);
+	}
 
 	ifr.ifr_addr.sa_family = AF_INET;
 	strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
 
-	ioctl(fd, SIOCGIFHWADDR, &ifr);
+	if (ioctl(fd, SIOCGIFHWADDR, &ifr)==-1) {
+		LOG(ERROR, "[API] %s - %s", iface, strerror(errno));
+		exit(-1);
+	}
 
 	close(fd);
+
+	if (ifr.ifr_hwaddr.sa_family!=ARPHRD_ETHER) {
+		LOG(ERROR, "[API] %s - not an Ethernet interface", iface);
+		exit(-1);
+	}
 
 	mac = (unsigned char *) ifr.ifr_hwaddr.sa_data;
 
@@ -302,6 +323,8 @@ int generate_signed_hash(uchar ** signed_hash) {
 		return -1;
 
 	RSA_sign(NID_md5, md5hash, MD5_DIGEST_LENGTH, buf, &n, rsa_priv_key);
+	OPENSSL_free(rsa_priv_key);
+
 	int i, j = 0;
 	for (i = 0; i < 128; i++) {
 		j += sprintf((char*) *signed_hash + j, "%02x", buf[i]);
@@ -422,6 +445,8 @@ int generate_ski_string() {
 	loc = X509_get_ext_by_NID(signed_cert, NID_subject_key_identifier, -1);
 	ext = X509_get_ext(signed_cert, loc);
 
+	OPENSSL_free(signed_cert);
+
 	if (ext == NULL) {
 		return -1;
 	}
@@ -505,7 +530,7 @@ int API_GetCertificate() {
 }
 
 int API_GetAllChannelKeys() {
-	uchar * signedhash;
+	uchar * signedhash = 0;
 	uchar msg[512];
 	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
 	uchar * keyblock;
@@ -520,13 +545,17 @@ int API_GetAllChannelKeys() {
 
 	plainlen = strlen(api_company) + 39;
 
-	if (generate_signed_hash(&signedhash) < 0)
+	if (generate_signed_hash(&signedhash) < 0) {
+		OPENSSL_free(signedhash);
 		return -1;
+	}
 
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~GetAllChannelKeys~%s~%s~%s~%s~ ~ ~", api_msgformat,
 			api_company, timestamp, clientMAC, api_clientID, api_company, ski,
 			signedhash, clientMAC);
+
+	OPENSSL_free(signedhash);
 
 	LOG(VERBOSE, "[API] Requesting master keys: %s", msg);
 	RC4_set_key(&rc4key, 16, session_key);
