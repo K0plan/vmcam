@@ -64,11 +64,15 @@ char api_company[31];				// Your company
 const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
 
 // Cert data
+const char * szAddress = "6825 Flanders Drive";
+const char * szZipCode = "92121";
 const char * szCountry = "US";
 const char * szProvince = "CA";
 const char * szCity = "San Diego";
-const char * szOrganization = "PCPlayer";
+const char * szOrganization = "vr2.3.1-candidate-amino-A130.11-hwonly";
 const char * szCommon = "STB";
+const char * szTelephone = "858-677-7800";
+const char * szChallengePassword = "VODPassword";
 char * szEmail;
 
 // Client data
@@ -343,9 +347,6 @@ int generate_csr(char** pem_csr) {
 	EVP_PKEY *pKey = NULL;
 	BIO *bio = NULL;
 
-	char * CN = calloc(64, 1);
-	sprintf(CN, "%s/%s", szCommon, szEmail);
-
 	// 2. set version of x509 req
 	x509_req = X509_REQ_new();
 	ret = X509_REQ_set_version(x509_req, nVersion);
@@ -356,32 +357,68 @@ int generate_csr(char** pem_csr) {
 	// 3. set subject of x509 req
 	x509_name = X509_REQ_get_subject_name(x509_req);
 
-	ret = X509_NAME_add_entry_by_txt(x509_name, "C", MBSTRING_ASC,
+	ret = X509_NAME_add_entry_by_txt(x509_name, "C", V_ASN1_PRINTABLESTRING,
 			(const unsigned char*) szCountry, -1, -1, 0);
 	if (ret != 1) {
 		goto free_all;
 	}
 
-	ret = X509_NAME_add_entry_by_txt(x509_name, "ST", MBSTRING_ASC,
+	ret = X509_NAME_add_entry_by_txt(x509_name, "ST", V_ASN1_PRINTABLESTRING,
 			(const unsigned char*) szProvince, -1, -1, 0);
 	if (ret != 1) {
 		goto free_all;
 	}
 
-	ret = X509_NAME_add_entry_by_txt(x509_name, "L", MBSTRING_ASC,
+	ret = X509_NAME_add_entry_by_txt(x509_name, "L", V_ASN1_PRINTABLESTRING,
 			(const unsigned char*) szCity, -1, -1, 0);
 	if (ret != 1) {
 		goto free_all;
 	}
 
-	ret = X509_NAME_add_entry_by_txt(x509_name, "O", MBSTRING_ASC,
+	ret = X509_NAME_add_entry_by_txt(x509_name, "O", V_ASN1_PRINTABLESTRING,
+			(const unsigned char*) api_company, -1, -1, 0);
+	if (ret != 1) {
+		goto free_all;
+	}
+
+	ret = X509_NAME_add_entry_by_txt(x509_name, "OU", V_ASN1_PRINTABLESTRING,
 			(const unsigned char*) szOrganization, -1, -1, 0);
 	if (ret != 1) {
 		goto free_all;
 	}
 
-	ret = X509_NAME_add_entry_by_txt(x509_name, "CN", MBSTRING_ASC,
-			(const unsigned char*) CN, -1, -1, 0);
+	ret = X509_NAME_add_entry_by_txt(x509_name, "CN", V_ASN1_PRINTABLESTRING,
+			(const unsigned char*) szCommon, -1, -1, 0);
+	if (ret != 1) {
+		goto free_all;
+	}
+
+	ret = X509_NAME_add_entry_by_txt(x509_name, "emailAddress", V_ASN1_IA5STRING,
+			(const unsigned char*) szEmail, -1, -1, 0);
+	if (ret != 1) {
+		goto free_all;
+	}
+
+	ret = X509_NAME_add_entry_by_txt(x509_name, "challengePassword", V_ASN1_PRINTABLESTRING,
+			(const unsigned char*) szChallengePassword, -1, -1, 0);
+	if (ret != 1) {
+		goto free_all;
+	}
+
+	ret = X509_NAME_add_entry_by_txt(x509_name, "streetAddress", V_ASN1_PRINTABLESTRING,
+			(const unsigned char*) szAddress, -1, -1, 0);
+	if (ret != 1) {
+		goto free_all;
+	}
+
+	ret = X509_NAME_add_entry_by_txt(x509_name, "postalCode", V_ASN1_PRINTABLESTRING,
+			(const unsigned char*) szZipCode, -1, -1, 0);
+	if (ret != 1) {
+		goto free_all;
+	}
+
+	ret = X509_NAME_add_entry_by_txt(x509_name, "telephoneNumber", V_ASN1_PRINTABLESTRING,
+			(const unsigned char*) szTelephone, -1, -1, 0);
 	if (ret != 1) {
 		goto free_all;
 	}
@@ -483,7 +520,7 @@ int API_GetCertificate() {
 	int response_len;
 	int msglen;
 	uchar msg[1024];
-	uchar * response_buffer = calloc(1024, 1);
+	uchar * response_buffer = calloc(2048, 1);
 	/******* Get the current time64 *******/
 	long long unsigned int t64 = (long long unsigned int) time(NULL);
 
@@ -508,7 +545,7 @@ int API_GetCertificate() {
 	LOG(VERBOSE, "[API] Requesting Certificate: %s", msg);
 
 	/******* Send the request *******/
-	response_len = ssl_client_send(msg, msglen, response_buffer, 1024,
+	response_len = ssl_client_send(msg, msglen, response_buffer, 2048,
 	vcasServerAddress, VCAS_Port_SSL);
 
 	if (response_len < 12) {
