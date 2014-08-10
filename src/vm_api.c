@@ -519,7 +519,7 @@ int API_GetCertificate() {
 	char * csr;
 	int response_len;
 	int msglen;
-	uchar msg[1024];
+	uchar msg[2048];
 	uchar * response_buffer = calloc(2048, 1);
 	/******* Get the current time64 *******/
 	long long unsigned int t64 = (long long unsigned int) time(NULL);
@@ -562,6 +562,7 @@ int API_GetCertificate() {
 	fclose(fp);
 
 	free(response_buffer);
+	free(csr);
 	return 0;
 }
 
