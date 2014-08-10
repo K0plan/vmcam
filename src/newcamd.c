@@ -108,7 +108,7 @@ int newcamd_init(struct newcamd *c, const unsigned char* user, const unsigned ch
 	write(c->client_fd, random, sizeof(random));
 
 	memcpy(c->key, key, 14);
-	c->pass = md5_crypt("pass", "$1$abcdefgh$");
+	c->pass = md5_crypt(pass, "$1$abcdefgh$");
 	c->user = (char*) user;
 
 	for(i = 0; i < 14; ++i) {

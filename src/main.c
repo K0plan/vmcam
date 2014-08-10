@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
 			}
 			host = argv[i+1];
 			i++;
-		} else if (strcmp(argv[i], "-nointial") == 0) {
+		} else if (strcmp(argv[i], "-noinitial") == 0) {
 			initial = 0;
 		} else if (strcmp(argv[i], "-ps") == 0) {
 			if (i+1 >= argc) {
