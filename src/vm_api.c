@@ -571,9 +571,8 @@ int API_SaveEncryptedPassword() {
 	uchar * response_buffer = calloc(1024, 1);
 	uchar password[65];
 	uchar random[32];
-	int msglen, retlen;
+	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
-	FILE * fp;
 	int i;
 
 	if (!RAND_bytes(random, 32)) {
@@ -587,25 +586,32 @@ int API_SaveEncryptedPassword() {
 		sprintf(password + i*2,"%02x", random[i]);
 	}
 	password[64] = 0;
-	printf("Password %s\n", password);
 
 	if (response_buffer == NULL) {
 		LOG(ERROR, "[API] SaveEncryptedPassword failed, unable to allocate memory");
 		return -1;
 	}
 
+	plainlen = strlen(api_company) + 39;
+
 	msglen = sprintf((char*) msg,
-			"%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", api_msgformat,
-			api_clientID, api_company, ski, 64, password);
+			"%s~%s~%s~%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", api_msgformat,
+			api_company, timestamp, clientMAC, api_clientID, api_company, ski, 64, password);
 
 	LOG(VERBOSE, "[API] Save encryption password: %s", msg);
 
-	retlen = ssl_client_send(msg, msglen, response_buffer, 1024,
-	vksServerAddress, VKS_Port_SSL+1);
+	RC4_set_key(&rc4key, 16, session_key);
+	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
-	retlen -= 4;
+	retlen = tcp_client_send(msg, msglen, response_buffer, 1024,
+	vcasServerAddress, VCAS_Port_SSL+1);
 
-	LOG(INFO, "[API] SaveEncryptedPassword completed, size: %d", retlen);
+	if (retlen < 8) {
+		free(response_buffer);
+		return -1;
+	}
+
+	LOG(DEBUG, "[API] SaveEncryptedPassword completed, size: %d", retlen);
 
 	free(response_buffer);
 	return 0;
@@ -614,26 +620,37 @@ int API_SaveEncryptedPassword() {
 int API_GetEncryptedPassword() {
 	uchar msg[512];
 	uchar * response_buffer = calloc(1024, 1);
-	int msglen, retlen;
-	FILE * fp;
+	int msglen, retlen, plainlen;
+	RC4_KEY rc4key;
 
 	if (response_buffer == NULL) {
 		LOG(ERROR, "[API] GetEncryptedPassword failed, unable to allocate memory");
 		return -1;
 	}
 
+	plainlen = strlen(api_company) + 39;
+
 	msglen = sprintf((char*) msg,
-			"%s~%s~GetEncryptedPassword~%s~%s~", api_msgformat,
-			api_clientID, api_company, ski);
+			"%s~%s~%s~%s~%s~GetEncryptedPassword~%s~%s~", api_msgformat,
+			api_company, timestamp, clientMAC, api_clientID, api_company, ski);
 
 	LOG(VERBOSE, "[API] Get encryption password: %s", msg);
 
-	retlen = ssl_client_send(msg, msglen, response_buffer, 1024,
-	vcasServerAddress, VCAS_Port_SSL);
+	RC4_set_key(&rc4key, 16, session_key);
+	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
-	retlen -= 4;
+	retlen = tcp_client_send(msg, msglen, response_buffer, 1024,
+	vcasServerAddress, VCAS_Port_SSL+1);
 
-	LOG(INFO, "[API] GetEncryptedPassword completed, size: %d", retlen);
+	if (retlen < 8) {
+		free(response_buffer);
+		return -1;
+	}
+
+	RC4_set_key(&rc4key, 16, session_key);
+	RC4(&rc4key, retlen-4, response_buffer+4, response_buffer+4);
+
+	LOG(DEBUG, "[API] GetEncryptedPassword: %s", response_buffer+8);
 
 	free(response_buffer);
 	return 0;
