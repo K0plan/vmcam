@@ -566,6 +566,79 @@ int API_GetCertificate() {
 	return 0;
 }
 
+int API_SaveEncryptedPassword() {
+	uchar msg[512];
+	uchar * response_buffer = calloc(1024, 1);
+	uchar password[65];
+	uchar random[32];
+	int msglen, retlen;
+	RC4_KEY rc4key;
+	FILE * fp;
+	int i;
+
+	if (!RAND_bytes(random, 32)) {
+		return -1;
+	}
+
+	RC4_set_key(&rc4key, 16, session_key);
+	RC4(&rc4key, 32, random, random);
+
+	for(i=0; i<32; i++) {
+		sprintf(password + i*2,"%02x", random[i]);
+	}
+	password[64] = 0;
+	printf("Password %s\n", password);
+
+	if (response_buffer == NULL) {
+		LOG(ERROR, "[API] SaveEncryptedPassword failed, unable to allocate memory");
+		return -1;
+	}
+
+	msglen = sprintf((char*) msg,
+			"%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", api_msgformat,
+			api_clientID, api_company, ski, 64, password);
+
+	LOG(VERBOSE, "[API] Save encryption password: %s", msg);
+
+	retlen = ssl_client_send(msg, msglen, response_buffer, 1024,
+	vksServerAddress, VKS_Port_SSL+1);
+
+	retlen -= 4;
+
+	LOG(INFO, "[API] SaveEncryptedPassword completed, size: %d", retlen);
+
+	free(response_buffer);
+	return 0;
+}
+
+int API_GetEncryptedPassword() {
+	uchar msg[512];
+	uchar * response_buffer = calloc(1024, 1);
+	int msglen, retlen;
+	FILE * fp;
+
+	if (response_buffer == NULL) {
+		LOG(ERROR, "[API] GetEncryptedPassword failed, unable to allocate memory");
+		return -1;
+	}
+
+	msglen = sprintf((char*) msg,
+			"%s~%s~GetEncryptedPassword~%s~%s~", api_msgformat,
+			api_clientID, api_company, ski);
+
+	LOG(VERBOSE, "[API] Get encryption password: %s", msg);
+
+	retlen = ssl_client_send(msg, msglen, response_buffer, 1024,
+	vcasServerAddress, VCAS_Port_SSL);
+
+	retlen -= 4;
+
+	LOG(INFO, "[API] GetEncryptedPassword completed, size: %d", retlen);
+
+	free(response_buffer);
+	return 0;
+}
+
 int API_GetAllChannelKeys() {
 	uchar * signedhash = 0;
 	uchar msg[512];
@@ -701,6 +774,13 @@ retry:
 		}
 		if (generate_ski_string() < 0) {
 			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
+		}
+		if (API_SaveEncryptedPassword() < 0) {
+			RETURN_ERR("Unable to save encrypted password");
+		}
+	} else {
+		if (API_GetEncryptedPassword() < 0) {
+			RETURN_ERR("Unable to get encrypted password");
 		}
 	}
 
