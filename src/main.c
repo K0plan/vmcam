@@ -266,14 +266,14 @@ int main(int argc, char *argv[]) {
 			}
 			dir = argv[i+1];
 			i++;
+		} else if (strcmp(argv[i], "-keyblockonly") == 0) {
+			port_newcamd = 0;
+			port_cs378x = 0;
 		} else {
 			printf("Unknown option '%s'\n", argv[i]);
 			usage = 1;
 		}
 	}
-
-	if (port_cs378x == 0 && port_newcamd)
-		err(1, "[VMCAM] Both CS378x and Newcamd are disabled");
 
 	if (usage) {
 		printf("Usage: vmcam [options]\n\n");
@@ -297,6 +297,7 @@ int main(int argc, char *argv[]) {
 		printf("\t-u [username]\t\tSet allowed user on server [default: user]\n");
 		printf("\t-p [password]\t\tSet password for server [default: pass]\n");
 		printf("\t-k [DES key]\t\tSet DES key for Newcamd [default: 0102030405060708091011121314]\n");
+		printf("\t-keyblockonly\t\tDisable Newcamd and CS378x\n");
 		return -1;
 	}
 	
