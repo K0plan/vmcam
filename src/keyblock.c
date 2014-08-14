@@ -63,7 +63,6 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 	uint16_t channel = (ECM[18] << 8) + ECM[19];
 	time_t time_now, time_mkey1, time_mkey2;
 	char valid_till_str[64];
-	char valid_till_str2[64];
 	fp = fopen(f_keyblock, "r");
 	if (!fp) {
 		LOG(ERROR, "[KEYBLOCK] Could not open file %s", f_keyblock);
@@ -77,7 +76,7 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 			time_now = time(NULL);
 			time_mkey1 = parse_ts(token + OFFSET_EXPIRE_MKEY1);
 			time_mkey2 = parse_ts(token + OFFSET_EXPIRE_MKEY2);
-			LOG(DEBUG, "[KEYBLOCK] Master keys found for Channel: %d. Valid till: %s - %s",	channel, ctime_r(&time_mkey2, valid_till_str), ctime_r(&time_now, valid_till_str2));
+			LOG(DEBUG, "[KEYBLOCK] Master keys found for Channel: %d. Valid till: %s",	channel, ctime_r(&time_mkey2, valid_till_str));
 
 			if (difftime(time_mkey1, time_now) > 0) { // Check expire date mkey 1
 				LOG(DEBUG, "[KEYBLOCK] Master key 1 selected");
@@ -94,6 +93,7 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 					return 0;
 				}
 			}
+			LOG(VERBOSE, "[KEYBLOCK] AES Key %x %x %x %x %x %x", mkey[0], mkey[1], mkey[2], mkey[3], mkey[4]);
 			AES_set_decrypt_key(mkey, 128, &aesmkey);
 
 			for (t = 0; t < 48; t += 16) {
@@ -107,6 +107,7 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 
 			
 			if (memcmp(&ECM[24], "CEB", 3) == 0) {
+				LOG(VERBOSE, "[KEYBLOCK] Check %x %x %x", ECM[24], ECM[25], ECM[26]);
 				LOG(DEBUG, "[KEYBLOCK] ECM decrypt check passed");
 			} else {
 				LOG(ERROR, "[KEYBLOCK] ECM decrypt failed, wrong master key or unknown format");
