@@ -72,5 +72,5 @@ Clients need to be changed to use AES instead of DES3
 ## Thanks
 Code is based upon the work of
 - vm_api (abandoned)
-- [OSCam](http://www.streamboard.tv/oscam/)
+- OSCam fork (abandoned)
 - [tsdecrypt] (http://georgi.unixsol.org/programs/tsdecrypt/)

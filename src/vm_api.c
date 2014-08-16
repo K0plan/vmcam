@@ -15,8 +15,6 @@
  * 
  * You should have received a copy of the GNU General Public License
  * along with VMCam.  If not, see <http://www.gnu.org/licenses/>.
- * 
- * vmapi code derived from work by spdfrk1
  */
 
 #define __STDC_FORMAT_MACROS

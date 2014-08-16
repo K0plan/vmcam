@@ -1,5 +1,4 @@
 /**
- * Copyright (C) 2009-2013 OSCam developers
  * Copyright (c) 2014 Iwan Timmer
  * 
  * This file is part of VMCam.
@@ -63,6 +62,7 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 	uint16_t channel = (ECM[18] << 8) + ECM[19];
 	time_t time_now, time_mkey1, time_mkey2;
 	char valid_till_str[64];
+	char valid_till_str2[64];
 	fp = fopen(f_keyblock, "r");
 	if (!fp) {
 		LOG(ERROR, "[KEYBLOCK] Could not open file %s", f_keyblock);
@@ -76,7 +76,7 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 			time_now = time(NULL);
 			time_mkey1 = parse_ts(token + OFFSET_EXPIRE_MKEY1);
 			time_mkey2 = parse_ts(token + OFFSET_EXPIRE_MKEY2);
-			LOG(DEBUG, "[KEYBLOCK] Master keys found for Channel: %d. Valid till: %s",	channel, ctime_r(&time_mkey2, valid_till_str));
+			LOG(DEBUG, "[KEYBLOCK] Master keys found for Channel: %d. Valid till: %s - %s",	channel, ctime_r(&time_mkey1, valid_till_str), ctime_r(&time_now, valid_till_str2));
 
 			if (difftime(time_mkey1, time_now) > 0) { // Check expire date mkey 1
 				LOG(DEBUG, "[KEYBLOCK] Master key 1 selected");
@@ -93,26 +93,27 @@ int32_t keyblock_analyse_file(unsigned char * dcw, unsigned char * ECM) {
 					return 0;
 				}
 			}
-			LOG(VERBOSE, "[KEYBLOCK] AES Key %x %x %x %x %x %x", mkey[0], mkey[1], mkey[2], mkey[3], mkey[4]);
+			LOG(VERBOSE, "[KEYBLOCK] AES Key %2x %2x %2x %2x %2x %2x", mkey[0], mkey[1], mkey[2], mkey[3], mkey[4], mkey[5]);
 			AES_set_decrypt_key(mkey, 128, &aesmkey);
 
 			for (t = 0; t < 48; t += 16) {
 				AES_ecb_encrypt(&ECM[24 + t], &ECM[24 + t], &aesmkey,
 				AES_DECRYPT);
+				LOG(VERBOSE, "[KEYBLOCK] DEC %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x %2x", ECM[24 + t], ECM[24 + t +1], ECM[24 + t +2], ECM[24 + t +3], ECM[24 + t +4], ECM[24 + t +5], ECM[24 + t +6], ECM[24 + t +7], ECM[24 + t +8], ECM[24 + t +9], ECM[24 + t +10], ECM[24 + t +11], ECM[24 + t +12], ECM[24 + t +13], ECM[24 + t +14], ECM[24 + t +15]);
 			}
 			
-			LOG(VERBOSE, "[KEYBLOCK] ECM %x %x %x %x %x %x", ECM[0], ECM[1], ECM[2], ECM[3], ECM[4], ECM[5]);
-			LOG(VERBOSE, "[KEYBLOCK] Key 1 %x %x %x %x %x %x", ECM[0+OFFSET_CWKEYS], ECM[1+OFFSET_CWKEYS], ECM[2+OFFSET_CWKEYS], ECM[3+OFFSET_CWKEYS], ECM[4+OFFSET_CWKEYS], ECM[5+OFFSET_CWKEYS]);
-			LOG(VERBOSE, "[KEYBLOCK] Key 2 %x %x %x %x %x %x", ECM[0+OFFSET_CWKEYS+16], ECM[1+OFFSET_CWKEYS+16], ECM[2+OFFSET_CWKEYS+16], ECM[3+OFFSET_CWKEYS+16], ECM[4+OFFSET_CWKEYS+16], ECM[5+OFFSET_CWKEYS+16]);
+			LOG(VERBOSE, "[KEYBLOCK] ECM %2x %2x %2x %2x %2x %2x", ECM[0], ECM[1], ECM[2], ECM[3], ECM[4], ECM[5]);
+			LOG(VERBOSE, "[KEYBLOCK] Key 1 %2x %2x %2x %2x %2x %2x", ECM[0+OFFSET_CWKEYS], ECM[1+OFFSET_CWKEYS], ECM[2+OFFSET_CWKEYS], ECM[3+OFFSET_CWKEYS], ECM[4+OFFSET_CWKEYS], ECM[5+OFFSET_CWKEYS]);
+			LOG(VERBOSE, "[KEYBLOCK] Key 2 %2x %2x %2x %2x %2x %2x", ECM[0+OFFSET_CWKEYS+16], ECM[1+OFFSET_CWKEYS+16], ECM[2+OFFSET_CWKEYS+16], ECM[3+OFFSET_CWKEYS+16], ECM[4+OFFSET_CWKEYS+16], ECM[5+OFFSET_CWKEYS+16]);
 
 			
 			if (memcmp(&ECM[24], "CEB", 3) == 0) {
-				LOG(VERBOSE, "[KEYBLOCK] Check %x %x %x", ECM[24], ECM[25], ECM[26]);
 				LOG(DEBUG, "[KEYBLOCK] ECM decrypt check passed");
 			} else {
+				LOG(VERBOSE, "[KEYBLOCK] Check %2x %2x %2x", ECM[24], ECM[25], ECM[26]);
 				LOG(ERROR, "[KEYBLOCK] ECM decrypt failed, wrong master key or unknown format");
-				fclose(fp);
-				return 0;
+				//fclose(fp);
+				//return 0;
 			}
 			if (table == 0x80) {
 				memcpy(dcw, ECM + OFFSET_CWKEYS, 32);
