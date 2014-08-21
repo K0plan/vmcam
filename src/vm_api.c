@@ -44,6 +44,7 @@
 #include "vm_api.h"
 #include "ssl-client.h"
 #include "tcp-client.h"
+#include "base64.h"
 #include "log.h"
 
 #define uchar unsigned char
@@ -75,7 +76,7 @@ char * szEmail;
 
 // Client data
 char * api_clientID;
-char * clientMAC;
+char * api_machineID;
 
 // Session data
 uchar * session_key;
@@ -88,6 +89,7 @@ char * f_csr;
 char * f_rsa_private_key;
 char * f_keyblock;
 char * f_ClientId;
+char * f_machineId;
 char f_dir[256] = {0};
 
 char* strconcat(char* str1, char* str2) {
@@ -109,12 +111,14 @@ void set_dir(char* dir) {
 		free(f_rsa_private_key);
 		free(f_keyblock);
 		free(f_ClientId);
+		free(f_machineId);
 	}
 
 	f_signedcert = strconcat(dir, "/SignedCert.der");
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
 	f_ClientId = strconcat(dir, "/clientid.dat");
+	f_machineId = strconcat(dir, "/machineid.dat");
 	strncpy(f_dir, dir, 255);
 }
 
@@ -191,6 +195,35 @@ int load_config(char* f_config) {
 	return -1;
 }
 
+int load_machineid() {
+	int i, j = 0;
+	api_machineID = calloc(29, 1);
+	char buf[20];
+	FILE * fp;
+
+	fp = fopen(f_machineId, "r");
+	if (fp) {
+		i = fread(api_machineID, 1, 28, fp);
+		fclose(fp);
+		if (i == 28) {
+			return 0;
+		}
+	}
+	LOG(DEBUG, "[API] No MachineID found, generating MachineID");
+	if (!RAND_bytes(buf, 20)) {
+		return -1;
+	}
+	
+	base64encode(buf, api_machineID, 20);
+	LOG(DEBUG, "[API] Your MachineID is: %s", api_machineID);
+	fp = fopen(f_machineId, "w");
+	if (fp) {
+		fwrite(api_machineID, 28, 1, fp);
+		fclose(fp);
+	}
+	return 0;
+}
+
 int load_clientid() {
 	int i, j = 0;
 	api_clientID = calloc(57, 1);
@@ -220,45 +253,6 @@ int load_clientid() {
 		fclose(fp);
 	}
 	return 0;
-}
-
-void load_MAC(char* iface) {
-	int fd;
-	struct ifreq ifr;
-
-	unsigned char *mac;
-
-	clientMAC = calloc(13, 1);
-
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd==-1) {
-		LOG(ERROR, "[API] %s - %s", iface, strerror(errno));
-		exit(-1);
-	}
-
-	ifr.ifr_addr.sa_family = AF_INET;
-	strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
-
-	if (ioctl(fd, SIOCGIFHWADDR, &ifr)==-1) {
-		LOG(ERROR, "[API] %s - %s", iface, strerror(errno));
-		exit(-1);
-	}
-
-	close(fd);
-
-	if (ifr.ifr_hwaddr.sa_family!=ARPHRD_ETHER) {
-		LOG(ERROR, "[API] %s - not an Ethernet interface", iface);
-		exit(-1);
-	}
-
-	mac = (unsigned char *) ifr.ifr_hwaddr.sa_data;
-
-	//display mac address
-	sprintf(clientMAC, "%.2x%.2x%.2x%.2x%.2x%.2x", mac[0], mac[1], mac[2],
-			mac[3], mac[4], mac[5]);
-	clientMAC[12] = 0;
-	LOG(DEBUG, "[API] Detected MAC: %s for interface: %s", clientMAC, iface);
-	return;
 }
 
 int generate_rsa_pkey() {
@@ -495,7 +489,7 @@ int API_GetSessionKey() {
 	uchar response_buffer[64];
 	uchar msg[128];
 	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
-			api_msgformat, api_clientID, api_company, clientMAC);
+			api_msgformat, api_clientID, api_company, api_machineID);
 			
 	LOG(DEBUG, "[API] Requesting Session Key: %s", msg);
 
@@ -525,7 +519,7 @@ int API_GetCertificate() {
 	/******* Generate the CSR *******/
 	LOG(DEBUG, "[API] Generating CSR");
 	szEmail = calloc(64, 1);
-	sprintf(szEmail, "%s.%llu@Verimatrix.com", clientMAC, t64);
+	sprintf(szEmail, "%s.%llu@Verimatrix.com", api_machineID, t64);
 	LOG(DEBUG, "[API] Using email: %s", szEmail);
 	generate_csr(&csr);
 
@@ -534,7 +528,7 @@ int API_GetCertificate() {
 			sprintf((char*) msg,
 					"%s~%s~getCertificate~%s~NA~NA~%s~STB~6650 Lusk Blvd, Suite B203~ ~San Diego~CA~92021~US~858-677-7800~%s~%s~ ~",
 					api_msgformat, api_clientID, api_company, csr, szEmail,
-					clientMAC);
+					api_machineID);
 
 	fp = fopen("getcertreq.txt", "w");
 	fwrite(msg, 1, msglen, fp);
@@ -594,7 +588,7 @@ int API_SaveEncryptedPassword() {
 
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", api_msgformat,
-			api_company, timestamp, clientMAC, api_clientID, api_company, ski, 64, password);
+			api_company, timestamp, api_machineID, api_clientID, api_company, ski, 64, password);
 
 	LOG(VERBOSE, "[API] Save encryption password: %s", msg);
 
@@ -630,7 +624,7 @@ int API_GetEncryptedPassword() {
 
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~GetEncryptedPassword~%s~%s~", api_msgformat,
-			api_company, timestamp, clientMAC, api_clientID, api_company, ski);
+			api_company, timestamp, api_machineID, api_clientID, api_company, ski);
 
 	LOG(VERBOSE, "[API] Get encryption password: %s", msg);
 
@@ -677,8 +671,8 @@ int API_GetAllChannelKeys() {
 
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~GetAllChannelKeys~%s~%s~%s~%s~ ~ ~", api_msgformat,
-			api_company, timestamp, clientMAC, api_clientID, api_company, ski,
-			signedhash, clientMAC);
+			api_company, timestamp, api_machineID, api_clientID, api_company, ski,
+			signedhash, api_machineID);
 
 	OPENSSL_free(signedhash);
 
@@ -714,18 +708,15 @@ int API_GetAllChannelKeys() {
 	return -1;
 }
 
-int init_vmapi(char* iface, int force_mac, unsigned char* mac) {
+int init_vmapi() {
 	// Init SSL Client
 	ssl_client_init();
 
 	int exit_code = EXIT_FAILURE;
 	
-	// Get client ID and MAC
+	// Get client ID and machine ID
 	load_clientid();
-	if (force_mac)
-		clientMAC = mac;
-	else
-		load_MAC(iface);
+	load_machineid();
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {
@@ -745,8 +736,9 @@ int init_vmapi(char* iface, int force_mac, unsigned char* mac) {
 		RETURN_ERR("Incorrect clientID length, length should be 56");
 	}
 
-	if(strlen(clientMAC) != 12) {
-		RETURN_ERR("Incorrect MAC length, format should be: \"615243342516\"");
+	if(strlen(api_machineID) != 28) {
+		remove(f_ClientId);
+		RETURN_ERR("Incorrect machineId length, length should be 28");
 	}
 
 	if(strlen(api_company) == 0) {
@@ -758,9 +750,9 @@ cleanup:
 	if (api_clientID) {
 		free(api_clientID);
 	}
-
-	if (clientMAC) {
-		free(clientMAC);
+	
+	if (api_machineID) {
+		free(api_machineID);
 	}
 
 	return exit_code;

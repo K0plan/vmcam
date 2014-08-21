@@ -32,8 +32,6 @@ To clone the repository issue the following commands:
 	-pk [VKS port]  Set VKS port number to connect to
 	-C [Company name] Set name of company for key retreival
 	-t [interval]  Interval for updating keys [default: 300]
-	-i [interface]  Name of connecting interface [default: eth0]
-	-m [mac addres]  Set mac addres [default from interface]
 	-noinitial  Skip initial keyblock retrieval
 
 	Newcamd/CS378x:

@@ -117,14 +117,11 @@ int main(int argc, char *argv[]) {
 	int i;
 	int usage = 0;
 	int sock;
-	int force_mac = 0;
 	int initial = 1;
 	unsigned int port_cs378x = 15080;
 	unsigned int port_newcamd = 15050;
-	char* iface = "eth0";
 	char* config = "/etc/vmcam.ini";
 	char* host = "0.0.0.0";
-	unsigned char* mac = 0;
 	unsigned int port_vcas = 0;
 	unsigned int port_vks = 0;
 	char* server_vcas = 0;
@@ -140,14 +137,7 @@ int main(int argc, char *argv[]) {
 	printf("VMCam - VCAS SoftCAM for IPTV\n");
 
 	for (i = 1; i < argc && usage == 0; i++) {
-		if (strcmp(argv[i], "-i") == 0) {
-			if (i+1 >= argc) {
-				printf("Need to provide a interface\n");
-				return -1;
-			}
-			iface = argv[i+1];
-			i++;
-		} else if (strcmp(argv[i], "-c") == 0) {
+		if (strcmp(argv[i], "-c") == 0) {
 			if (i+1 >= argc) {
 				printf("Need to provide a configfile\n");
 				return -1;
@@ -199,14 +189,6 @@ int main(int argc, char *argv[]) {
 				printf("Provided key is not a DES key\n");
 				return -1;
 			}
-			i++;
-		} else if (strcmp(argv[i], "-m") == 0) {
-			if (i+1 >= argc) {
-				printf("Need to provide a mac address\n");
-				return -1;
-			}
-			force_mac = 1;
-			mac = argv[i+1];
 			i++;
 		} else if (strcmp(argv[i], "-l") == 0) {
 			if (i+1 >= argc) {
@@ -287,8 +269,6 @@ int main(int argc, char *argv[]) {
 		printf("\t-pk [VKS port]\t\tSet VKS port number to connect to\n");
 		printf("\t-C [Company name]\tSet name of company for key retreival\n");
 		printf("\t-t [interval]\t\tInterval for updating keys [default: 300]\n");
-		printf("\t-i [interface]\t\tName of connecting interface [default: eth0]\n");
-		printf("\t-m [mac addres]\t\tSet mac addres [default from interface]\n");
 		printf("\t-noinitial\t\tSkip initial keyblock retrieval\n\n");
 		printf("  Newcamd/CS378x:\n\n");
 		printf("\t-pn [Newcamd port]\tSet Newcamd port number or 0 to disable [default: 15050]\n");
@@ -307,7 +287,7 @@ int main(int argc, char *argv[]) {
 	
 	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval, dir);
 
-	if ((ret = init_vmapi(iface, force_mac, mac)) == EXIT_FAILURE)
+	if ((ret = init_vmapi()) == EXIT_FAILURE)
 		return ret;
 	
 	if (initial) {

@@ -1,6 +1,4 @@
 /**
- * Copyright (c) 2014 Iwan Timmer
- * 
  * This file is part of VMCam.
  * 
  * VMCam is free software: you can redistribute it and/or modify
@@ -17,9 +15,22 @@
  * along with VMCam.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-unsigned int key_interval;
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <stdio.h>
+ 
+void base64encode(const char* message, char* buffer, int len) {
+	BIO *bio, *b64;
+	FILE* stream;
+	int encodedSize = 4*((len+2)/3);
 
-void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir);
-int load_config(char* f_config);
-int init_vmapi();
-int load_keyblock(void);
+	stream = fmemopen(buffer, encodedSize+1, "w");
+	b64 = BIO_new(BIO_f_base64());
+	bio = BIO_new_fp(stream, BIO_NOCLOSE);
+	bio = BIO_push(b64, bio);
+	BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Ignore newlines - write everything in one line
+	BIO_write(bio, message, len);
+	BIO_flush(bio);
+	BIO_free_all(bio);
+	fclose(stream);
+}

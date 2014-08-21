@@ -91,7 +91,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_vmcam_OBJECTS = main.$(OBJEXT) keyblock.$(OBJEXT) crc32.$(OBJEXT) \
 	newcamd.$(OBJEXT) cs378x.$(OBJEXT) vm_api.$(OBJEXT) \
-	ssl-client.$(OBJEXT) tcp-client.$(OBJEXT) md5crypt.$(OBJEXT)
+	ssl-client.$(OBJEXT) tcp-client.$(OBJEXT) md5crypt.$(OBJEXT) \
+	base64.$(OBJEXT)
 vmcam_OBJECTS = $(am_vmcam_OBJECTS)
 vmcam_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -233,7 +234,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-vmcam_SOURCES = main.c keyblock.c crc32.c newcamd.c cs378x.c vm_api.c ssl-client.c tcp-client.c md5crypt.c
+vmcam_SOURCES = main.c keyblock.c crc32.c newcamd.c cs378x.c vm_api.c ssl-client.c tcp-client.c md5crypt.c base64.c
 all: all-am
 
 .SUFFIXES:
@@ -321,6 +322,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/base64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/crc32.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/cs378x.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/keyblock.Po@am__quote@
