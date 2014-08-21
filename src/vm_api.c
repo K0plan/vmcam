@@ -526,9 +526,10 @@ int API_GetCertificate() {
 	/******* Generate the request string *******/
 	msglen =
 			sprintf((char*) msg,
-					"%s~%s~getCertificate~%s~NA~NA~%s~STB~6650 Lusk Blvd, Suite B203~ ~San Diego~CA~92021~US~858-677-7800~%s~%s~ ~",
-					api_msgformat, api_clientID, api_company, csr, szEmail,
-					api_machineID);
+					"%s~%s~getCertificate~%s~NA~NA~%s~STB~%s~ ~%s~%s~%s~%s~%s~%s~%s~",
+					api_msgformat, api_clientID, api_company, csr,
+					szAddress, szCity, szProvince, szZipCode, szCountry, szTelephone, szEmail,
+					api_machineID, szChallengePassword);
 
 	fp = fopen("getcertreq.txt", "w");
 	fwrite(msg, 1, msglen, fp);
