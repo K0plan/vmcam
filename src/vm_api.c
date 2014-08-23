@@ -63,8 +63,8 @@ char api_company[31];				// Your company
 const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
 
 // Cert data
-const char * szAddress = "6825 Flanders Drive";
-const char * szZipCode = "92121";
+const char * szAddress = "6650 Lusk Blvd, Suite B203";
+const char * szZipCode = "92021";
 const char * szCountry = "US";
 const char * szProvince = "CA";
 const char * szCity = "San Diego";
@@ -108,6 +108,7 @@ char* strconcat(char* str1, char* str2) {
 void set_dir(char* dir) {
 	if (f_dir[0] != 0) {
 		free(f_signedcert);
+		free(f_csr);
 		free(f_rsa_private_key);
 		free(f_keyblock);
 		free(f_ClientId);
@@ -115,6 +116,7 @@ void set_dir(char* dir) {
 	}
 
 	f_signedcert = strconcat(dir, "/SignedCert.der");
+	f_csr = strconcat(dir, "/csr");
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
 	f_ClientId = strconcat(dir, "/clientid.dat");
@@ -244,7 +246,7 @@ int load_clientid() {
 	}
 	
 	for (i = 0; i < 28; i++) {
-		j += sprintf(api_clientID + j, "%02X", buf[i] & 0xFF);
+		j += sprintf(api_clientID + j, "%02x", buf[i] & 0xFF);
 	}
 	LOG(DEBUG, "[API] Your ClientID is: %s", api_clientID);
 	fp = fopen(f_ClientId, "w");
@@ -259,7 +261,7 @@ int generate_rsa_pkey() {
 	FILE * fp;
 	RSA * rsa_priv_key;
 	const int kBits = 1024;
-	const int kExp = 65537;
+	const int kExp = 3;
 	int keylen;
 	char *pem_key;
 
@@ -397,24 +399,6 @@ int generate_csr(char** pem_csr) {
 		goto free_all;
 	}
 
-	ret = X509_NAME_add_entry_by_txt(x509_name, "streetAddress", V_ASN1_PRINTABLESTRING,
-			(const unsigned char*) szAddress, -1, -1, 0);
-	if (ret != 1) {
-		goto free_all;
-	}
-
-	ret = X509_NAME_add_entry_by_txt(x509_name, "postalCode", V_ASN1_PRINTABLESTRING,
-			(const unsigned char*) szZipCode, -1, -1, 0);
-	if (ret != 1) {
-		goto free_all;
-	}
-
-	ret = X509_NAME_add_entry_by_txt(x509_name, "telephoneNumber", V_ASN1_PRINTABLESTRING,
-			(const unsigned char*) szTelephone, -1, -1, 0);
-	if (ret != 1) {
-		goto free_all;
-	}
-
 	// 4. set public key of x509 req
 	if (load_rsa_pkey(&rsa_priv_key) < 0)
 		goto free_all;
@@ -531,10 +515,6 @@ int API_GetCertificate() {
 					szCommon, szAddress, szCity, szProvince, szZipCode, szCountry, szTelephone, szEmail,
 					api_machineID, szChallengePassword);
 
-	fp = fopen("getcertreq.txt", "w");
-	fwrite(msg, 1, msglen, fp);
-	fclose(fp);
-
 	LOG(VERBOSE, "[API] Requesting Certificate: %s", msg);
 
 	/******* Send the request *******/
@@ -567,6 +547,7 @@ int API_SaveEncryptedPassword() {
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
 	int i;
+	uchar unencryptedAPICompare[128];
 
 	if (!RAND_bytes(random, 32)) {
 		return -1;
@@ -585,7 +566,8 @@ int API_SaveEncryptedPassword() {
 		return -1;
 	}
 
-	plainlen = strlen(api_company) + 39;
+	plainlen = sprintf((char*) unencryptedAPICompare, "%s~%s~%s~%s~",
+			api_msgformat, api_company, timestamp, api_machineID);
 
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", api_msgformat,
@@ -615,13 +597,15 @@ int API_GetEncryptedPassword() {
 	uchar * response_buffer = calloc(1024, 1);
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
+	uchar unencryptedAPICompare[128];
 
 	if (response_buffer == NULL) {
 		LOG(ERROR, "[API] GetEncryptedPassword failed, unable to allocate memory");
 		return -1;
 	}
 
-	plainlen = strlen(api_company) + 39;
+	plainlen = sprintf((char*) unencryptedAPICompare, "%s~%s~%s~%s~",
+			api_msgformat, api_company, timestamp, api_machineID);
 
 	msglen = sprintf((char*) msg,
 			"%s~%s~%s~%s~%s~GetEncryptedPassword~%s~%s~", api_msgformat,
@@ -657,13 +641,15 @@ int API_GetAllChannelKeys() {
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
 	FILE * fp;
+	uchar unencryptedAPICompare[128];
 
 	if (response_buffer == NULL) {
 		LOG(ERROR, "[API] GetAllChannelKeys failed, unable to allocate memory");
 		return -1;
 	}
 
-	plainlen = strlen(api_company) + 39;
+	plainlen = sprintf((char*) unencryptedAPICompare, "%s~%s~%s~%s~",
+			api_msgformat, api_company, timestamp, api_machineID);
 
 	if (generate_signed_hash(&signedhash) < 0) {
 		OPENSSL_free(signedhash);
