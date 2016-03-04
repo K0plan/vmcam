@@ -95,7 +95,7 @@ static void print_hex(char* msg, unsigned char* data, int length) {
 		printf("[NEWCAMD] %s", msg);
 		for (i = 0; i < length; i++)
 			printf(" %02x", data[i]);
-		
+
 		printf("\n");
 	}
 }
@@ -139,7 +139,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 
 			LOG(INFO, "[NEWCAMD] User '%s' == '%s'", user, c->user);
 			LOG(DEBUG, "[NEWCAMD] Password '%s' == '%s'", password, c->pass);
-			
+
 			response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
 			if (strcmp(user, c->user)==0 && strcmp(password, c->pass)==0) {
 				response[0] = MSG_CLIENT_2_SERVER_LOGIN_ACK;
@@ -157,7 +157,7 @@ int newcamd_handle(struct newcamd *c, int32_t (*f)(unsigned char*, unsigned char
 				newcamd_send(c, response, 3, service_id, msg_id, provider_id);
 				LOG(ERROR, "[NEWCAMD] Password incorrect");
 				return -1;
-			}			
+			}
 		case MSG_CARD_DATA_REQ:
 			LOG(DEBUG, "[NEWCAMD] Request card info");
 			memset(response, 0, 14+12);
@@ -200,7 +200,7 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 		return -1;
 
 	len = ((buffer[0] << 8) | buffer[1]) & 0xFFFF;
-	
+
 	LOG(DEBUG, "[NEWCAMD] Read message of %d bytes", len);
 
 	if (len > NEWCAMD_MSG_SIZE) {
@@ -210,6 +210,12 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 
 	if (read(c->client_fd, buffer, len) < len) {
 		LOG(ERROR, "[NEWCAMD] Received message too short");
+		return -1;
+	}
+
+	if (len < sizeof(ivec)) {
+		LOG(ERROR, "[NEWCAMD] Not enough data");
+		return -1;
 	}
 
 	len -= sizeof(ivec);
@@ -224,7 +230,7 @@ int newcamd_recv(struct newcamd *c, unsigned char* data, uint16_t* service_id, u
 	*msg_id = ((buffer[0] << 8) | buffer[1]) & 0xFFFF;
 	*service_id = ((buffer[2] << 8) | buffer[3]) & 0xFFFF;
 	*provider_id = buffer[4] << 16 | buffer[5] << 8 | buffer[6];
-	
+
 	retlen = (((buffer[3 + NEWCAMD_HDR_LEN] << 8) | buffer[4 + NEWCAMD_HDR_LEN]) & 0x0FFF) + 3;
 	LOG(DEBUG, "[NEWCAMD] Received message msgid: %d, serviceid: %d, providerid: %d, length: %d", *msg_id, *service_id, *provider_id, retlen);
 	memcpy(data, buffer + 2 + NEWCAMD_HDR_LEN, retlen);
@@ -252,7 +258,7 @@ int newcamd_send(struct newcamd *c, unsigned char* data, int data_len, uint16_t 
 	buffer[6] = provider_id >> 16;
 	buffer[7] = (provider_id >> 8) & 0xFF;
 	buffer[8] = provider_id & 0xFF;
-	
+
 	LOG(DEBUG, "[NEWCAMD] Send message msgid: %d, serviceid: %d, providerid: %d, length: %d", msg_id, service_id, provider_id, data_len + 2 + NEWCAMD_HDR_LEN);
 
 	DES_cblock padding;

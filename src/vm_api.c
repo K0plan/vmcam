@@ -1,18 +1,18 @@
 /**
  * Copyright (c) 2014 Iwan Timmer
- * 
+ *
  * This file is part of VMCam.
- * 
+ *
  * VMCam is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * VMCam is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with VMCam.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -77,6 +77,7 @@ char * szEmail;
 // Client data
 char * api_clientID;
 char * api_machineID;
+char aminoMAC[13];
 
 // Session data
 uchar * session_key;
@@ -88,8 +89,6 @@ char * f_signedcert;
 char * f_csr;
 char * f_rsa_private_key;
 char * f_keyblock;
-char * f_ClientId;
-char * f_machineId;
 char f_dir[256] = {0};
 
 char* strconcat(char* str1, char* str2) {
@@ -111,16 +110,12 @@ void set_dir(char* dir) {
 		free(f_csr);
 		free(f_rsa_private_key);
 		free(f_keyblock);
-		free(f_ClientId);
-		free(f_machineId);
 	}
 
 	f_signedcert = strconcat(dir, "/SignedCert.der");
 	f_csr = strconcat(dir, "/csr");
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
-	f_ClientId = strconcat(dir, "/clientid.dat");
-	f_machineId = strconcat(dir, "/machineid.dat");
 	strncpy(f_dir, dir, 255);
 }
 
@@ -161,7 +156,7 @@ int load_config(char* f_config) {
 	int scan;
 	int path = 0;
 	key_interval = 300;
-	
+
 	char key[31], value[31];
 	if ((fp = fopen(f_config, "r"))) {
 		while ((scan = fscanf(fp, "%30[^=\n]=%30s\n?", key, value)) != EOF) {
@@ -183,6 +178,8 @@ int load_config(char* f_config) {
 					key_interval = atoi(value);
 				} else if (strcasecmp(key, "ERRORLEVEL") == 0) {
 					debug_level = atoi(value);
+				} else if (strcasecmp(key, "AMINOMAC") == 0) {
+					strncpy(aminoMAC, value, 12);
 				}
 			}
 		}
@@ -191,70 +188,12 @@ int load_config(char* f_config) {
 		return -1;
 	}
 
+	LOG(INFO, "[API] Config file loaded");
+
 	if (!path)
 		set_dir("/var/cache/vmcam");
 
 	return -1;
-}
-
-int load_machineid() {
-	int i, j = 0;
-	api_machineID = calloc(29, 1);
-	char buf[20];
-	FILE * fp;
-
-	fp = fopen(f_machineId, "r");
-	if (fp) {
-		i = fread(api_machineID, 1, 28, fp);
-		fclose(fp);
-		if (i == 28) {
-			return 0;
-		}
-	}
-	LOG(DEBUG, "[API] No MachineID found, generating MachineID");
-	if (!RAND_bytes(buf, 20)) {
-		return -1;
-	}
-	
-	base64encode(buf, api_machineID, 20);
-	LOG(DEBUG, "[API] Your MachineID is: %s", api_machineID);
-	fp = fopen(f_machineId, "w");
-	if (fp) {
-		fwrite(api_machineID, 28, 1, fp);
-		fclose(fp);
-	}
-	return 0;
-}
-
-int load_clientid() {
-	int i, j = 0;
-	api_clientID = calloc(57, 1);
-	char buf[28];
-	FILE * fp;
-
-	fp = fopen(f_ClientId, "r");
-	if (fp) {
-		i = fread(api_clientID, 1, 56, fp);
-		fclose(fp);
-		if (i == 56) {
-			return 0;
-		}
-	}
-	LOG(DEBUG, "[API] No ClientID found, generating ClientID");
-	if (!RAND_bytes(buf, 28)) {
-		return -1;
-	}
-	
-	for (i = 0; i < 28; i++) {
-		j += sprintf(api_clientID + j, "%02x", buf[i] & 0xFF);
-	}
-	LOG(DEBUG, "[API] Your ClientID is: %s", api_clientID);
-	fp = fopen(f_ClientId, "w");
-	if (fp) {
-		fwrite(api_clientID, j, 1, fp);
-		fclose(fp);
-	}
-	return 0;
 }
 
 int generate_rsa_pkey() {
@@ -474,7 +413,7 @@ int API_GetSessionKey() {
 	uchar msg[128];
 	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
 			api_msgformat, api_clientID, api_company, api_machineID);
-			
+
 	LOG(DEBUG, "[API] Requesting Session Key: %s", msg);
 
 	if(ssl_client_send(msg, msglen, response_buffer, 64, vcasServerAddress,
@@ -668,7 +607,7 @@ int API_GetAllChannelKeys() {
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-	vksServerAddress, (VKS_Port_SSL + 1));
+	vksServerAddress, (VKS_Port_SSL + 2));
 	if (retlen < 10) {
 		free(response_buffer);
 		return -1;
@@ -676,7 +615,7 @@ int API_GetAllChannelKeys() {
 
 	keyblock = response_buffer + 4;
 	retlen -= 4;
-	
+
 	LOG(INFO, "[API] GetAllChannelKeys completed, size: %d", retlen);
 
 	RC4_set_key(&rc4key, 16, session_key);
@@ -700,32 +639,26 @@ int init_vmapi() {
 	ssl_client_init();
 
 	int exit_code = EXIT_FAILURE;
-	
+
 	// Get client ID and machine ID
-	load_clientid();
-	load_machineid();
+	api_clientID = aminoMAC;
+	api_machineID = aminoMAC;
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {
 		RETURN_ERR("Check your port configuration!");
 	}
-	
+
 	if(strlen(vcasServerAddress) == 0) {
 		RETURN_ERR("Check your VCAS server ip!");
 	}
-	
+
 	if(strlen(vksServerAddress) == 0) {
 		RETURN_ERR("Check your VKS server ip!");
 	}
 
-	if(strlen(api_clientID) != 56) {
-		remove(f_ClientId);
-		RETURN_ERR("Incorrect clientID length, length should be 56");
-	}
-
-	if(strlen(api_machineID) != 28) {
-		remove(f_ClientId);
-		RETURN_ERR("Incorrect machineId length, length should be 28");
+	if(strlen(aminoMAC) != 12) {
+		RETURN_ERR("Incorrect AMINOMAC length, length should be 12");
 	}
 
 	if(strlen(api_company) == 0) {
@@ -737,11 +670,10 @@ cleanup:
 	if (api_clientID) {
 		free(api_clientID);
 	}
-	
+
 	if (api_machineID) {
 		free(api_machineID);
 	}
-
 	return exit_code;
 }
 
@@ -760,7 +692,7 @@ retry:
 	}
 	// Give the server some time
 	usleep(500 * 1000);
-	
+
 	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
 	if (generate_ski_string() < 0) {
 		if (API_GetCertificate() < 0) {
@@ -801,7 +733,7 @@ retry:
 		}
 		goto cleanup;
 	}
-	
+
 	exit_code = EXIT_SUCCESS;
 cleanup:
 	if (session_key) {
@@ -813,4 +745,3 @@ cleanup:
 
 	return exit_code;
 }
-

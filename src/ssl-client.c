@@ -125,6 +125,7 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 	/* Assign the socket into the SSL structure (SSL and socket without BIO) */
 	SSL_set_fd(ssl_sock, sock);
 
+	SSL_set_connect_state(ssl_sock);
 	/* Perform SSL Handshake on the SSL client */
 	err = SSL_connect(ssl_sock);
 
@@ -156,6 +157,7 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 
 	/*-------- DATA EXCHANGE - send message and receive reply. -------*/
 	/* Send data to the SSL server */
+
 	err = SSL_write(ssl_sock, msg, msglen);
 
 	RETURN_SSL(err);

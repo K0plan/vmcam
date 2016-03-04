@@ -93,6 +93,18 @@ of `autoconf'.
      targets like `make install' and `make uninstall' work correctly.
      This target is generally not run by end users.
 
+OpenSSL issues with certain servers
+===================================
+
+   Some (if not all) VCAS servers use small DH keys of less than 768
+bits for their connections. Newer versions of libssl will not accept
+these small keys and as a result they will fail to make a connection.
+As this size limit is hardcoded in libssl and you probably won't have
+access to the VCAS server configuration, the only feasible solution is
+to run vmcam with both the libssl and libcrypto libraries from an older
+version of OpenSSL (libssl1.0.0_1.0.1e-2+deb7u16 from the Debian Jessie
+repository works for me).
+
 Compilers and Options
 =====================
 

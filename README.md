@@ -52,6 +52,7 @@ In vmcam.ini you can use the following configuration options
 	STOREPATH=[directory]
 	PREFERRED_VKS=[VKS address]:[VKS port]
 	MIN_KEY_RETRY_INTERVAL=[interval]
+	AMINOMAC=[MAC address of your Amino]
 	ERRORLEVEL=[debug level]
 
 ## CAMD35-TCP/CS378x

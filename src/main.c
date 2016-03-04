@@ -1,18 +1,18 @@
 /**
  * Copyright (c) 2014 Iwan Timmer
- * 
+ *
  * This file is part of VMCam.
- * 
+ *
  * VMCam is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * VMCam is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with VMCam.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -59,7 +59,14 @@ void *handle_client(void* handle) {
 		}
 
 		LOG(INFO, "[VMCAM] Got connection");
-		pthread_create(&thread, NULL, server->callback, &client_fd);
+
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+		pthread_create(&thread, &attr, server->callback, &client_fd);
+
+		pthread_attr_destroy(&attr);
 	}
 }
 
@@ -280,33 +287,45 @@ int main(int argc, char *argv[]) {
 		printf("\t-keyblockonly\t\tDisable Newcamd and CS378x\n");
 		return -1;
 	}
-	
+
 	load_config(config);
 	if (debug > 0)
 		debug_level = debug;
-	
+
 	vm_config(server_vcas, port_vcas, server_vks, port_vks, company, interval, dir);
 
 	if ((ret = init_vmapi()) == EXIT_FAILURE)
 		return ret;
-	
+
 	if (initial) {
 		if ((ret = load_keyblock()) == EXIT_FAILURE)
 			return ret;
 	}
 
 	if (port_newcamd > 0) {
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 		newcamd_handler.sock = open_socket("Newcamd", host, port_newcamd);
 		newcamd_handler.callback = handle_client_newcamd;
-		pthread_create(&thread, NULL, handle_client, &newcamd_handler);
+		pthread_create(&thread, &attr, handle_client, &newcamd_handler);
+
+		pthread_attr_destroy(&attr);
 	}
 
 	if (port_cs378x > 0) {
+		pthread_attr_t attr;
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 		cs378x_handler.sock = open_socket("CS378x", host, port_cs378x);
 		cs378x_handler.callback = handle_client_cs378x;
-		pthread_create(&thread, NULL, handle_client, &cs378x_handler);
+		pthread_create(&thread, &attr, handle_client, &cs378x_handler);
+
+		pthread_attr_destroy(&attr);
 	}
-	
+
 	while (1) {
 		LOG(INFO, "[VMCAM] Next keyblock update in %d seconds", key_interval);
 		sleep(key_interval);
