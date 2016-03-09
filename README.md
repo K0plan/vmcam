@@ -20,12 +20,13 @@ To clone the repository issue the following commands:
 ## Usage
 	vmcam [options]
 
-	-e [directory]  Directory to store files
+	-e [directory]  Directory to store cache files [default: /var/cache/vmcam]
 	-d [debug level] Set debug level [default: 0]
 
 	VCAS/VKS:
 
 	-c [configfile]  VCAS configfile [default: vmcam.ini]
+	-a [Amino MAC]  Your Amino MAC address [format: 010203040506]
 	-ss [VCAS address] Set VCAS hostname to connect to
 	-sk [VKS address] Set VKS hostname to connect to
 	-ps [VCAS port]  Set VCAS port number to connect to
@@ -46,14 +47,21 @@ To clone the repository issue the following commands:
 ## vmcam.ini
 In vmcam.ini you can use the following configuration options
 
-	COMPANY=[Company name] 
-	SERVERADDRESS=[VCAS address]
-	SERVERPORT=[VCAS port]
-	STOREPATH=[directory]
-	PREFERRED_VKS=[VKS address]:[VKS port]
-	MIN_KEY_RETRY_INTERVAL=[interval]
+	CACHE_DIR=[Cache directory, default /var/cache/vmcam]
+	DEBUG_LEVEL=[Debug level]
 	AMINOMAC=[MAC address of your Amino]
-	ERRORLEVEL=[debug level]
+	VCASSERVERADDRESS=[VCAS address]
+	VCASSERVERPORT=[VCAS port]
+	VKSSERVERADDRESS=[VKS address]
+	VKSSERVERPORT=[VKS port]
+	COMPANY=[Company name] 
+	KEY_INTERVAL=[Key update interval]
+	NEWCAMD_PORT=[Newcamd listening port]
+	CS378X_PORT=[CS378x listening port]
+	LISTEN_IP=[Address to listen for Newcamd/CS378x connections]
+	USERNAME=[Newcamd/CS378x username]
+	PASSWORD=[Newcamd/CS378x password]
+	DES_KEY=[DES key for Newcamd]
 
 ## CAMD35-TCP/CS378x
 Clients need to be changed to use AES instead of DES3

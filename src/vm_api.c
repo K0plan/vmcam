@@ -46,6 +46,7 @@
 #include "tcp-client.h"
 #include "base64.h"
 #include "log.h"
+#include "var_func.h"
 
 #define uchar unsigned char
 #define GETKEYS_BUFFSIZE (1024 * 100)
@@ -53,13 +54,13 @@
 #define RETURN_ERR(s) LOG(ERROR, "[API] %s", s); goto cleanup;
 
 // Connection data
-char vcasServerAddress[31];			// Your VCAS server address
-char vksServerAddress[31];			// Your VCAS server address
-int VCAS_Port_SSL;				// Your VCAS port
-int VKS_Port_SSL;				// Your VKS port
+char * vcasServerAddress = NULL;		// Your VCAS server address
+char * vksServerAddress = NULL;			// Your VCAS server address
+int VCAS_Port_SSL = 0;				// Your VCAS port
+int VKS_Port_SSL = 0;				// Your VKS port
 
 // API data
-char api_company[31];				// Your company
+char * api_company = NULL;				// Your company
 const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
 
 // Cert data
@@ -72,24 +73,23 @@ const char * szOrganization = "vr2.3.1-candidate-amino-A130.11-hwonly";
 const char * szCommon = "STB";
 const char * szTelephone = "858-677-7800";
 const char * szChallengePassword = "VODPassword";
-char * szEmail;
+char * szEmail = NULL;
 
 // Client data
-char * api_clientID;
-char * api_machineID;
-char aminoMAC[13];
+char api_clientID[13];
+char api_machineID[13];
 
 // Session data
-uchar * session_key;
-uchar * timestamp;
-char * ski;
+uchar * session_key = NULL;
+uchar * timestamp = NULL;
+char * ski = NULL;
 
 // Files used
-char * f_signedcert;
-char * f_csr;
-char * f_rsa_private_key;
-char * f_keyblock;
-char f_dir[256] = {0};
+char * f_signedcert = NULL;
+char * f_csr = NULL;
+char * f_rsa_private_key = NULL;
+char * f_keyblock = NULL;
+char * f_dir = NULL;
 
 char* strconcat(char* str1, char* str2) {
 	int length = strlen(str1) + strlen(str2) + 1;
@@ -104,8 +104,8 @@ char* strconcat(char* str1, char* str2) {
 	return result;
 }
 
-void set_dir(char* dir) {
-	if (f_dir[0] != 0) {
+void set_cache_dir(char* dir) {
+	if (f_dir != NULL && f_dir[0] != 0) {
 		free(f_signedcert);
 		free(f_csr);
 		free(f_rsa_private_key);
@@ -116,20 +116,20 @@ void set_dir(char* dir) {
 	f_csr = strconcat(dir, "/csr");
 	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
 	f_keyblock = strconcat(dir, "/keyblock");
-	strncpy(f_dir, dir, 255);
+	f_dir = dir;
 }
 
-void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, unsigned int interval, char* dir) {
+void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, char* dir, char* amino_mac) {
 	struct stat st = {0};
 
 	if (vcas_address != 0)
-		strncpy(vcasServerAddress, vcas_address, 30);
+		str_realloc_copy(&vcasServerAddress, vcas_address);
 
 	if (vks_address != 0)
-		strncpy(vksServerAddress, vks_address, 30);
+		str_realloc_copy(&vksServerAddress, vks_address);
 
 	if (company != 0)
-		strncpy(api_company, company, 30);
+		str_realloc_copy(&api_company, company);
 
 	if (vcas_port > 0)
 		VCAS_Port_SSL = vcas_port;
@@ -137,11 +137,13 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 	if (vks_port > 0)
 		VKS_Port_SSL = vks_port;
 
-	if (interval > 0)
-		key_interval = interval;
-
 	if (dir != 0)
-		set_dir(dir);
+		set_cache_dir(dir);
+
+	if (amino_mac != 0) {
+		memcpy(api_clientID, amino_mac, 12);
+                memcpy(api_machineID, amino_mac, 12);
+        }
 
 	if (stat(f_dir, &st) == -1) {
 		LOG(ERROR, "[API] Directory %s doesn't exist", f_dir);
@@ -149,51 +151,6 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 		LOG(ERROR, "[API] Directory %s isn't writable", f_dir);
 		exit(-1);
 	}
-}
-
-int load_config(char* f_config) {
-	FILE * fp;
-	int scan;
-	int path = 0;
-	key_interval = 300;
-
-	char key[31], value[31];
-	if ((fp = fopen(f_config, "r"))) {
-		while ((scan = fscanf(fp, "%30[^=\n]=%30s\n?", key, value)) != EOF) {
-			if (scan == 1) {
-				fseek(fp, 1, SEEK_CUR); //Skip EOL
-			} else {
-				if (strcasecmp(key, "COMPANY") == 0) {
-					strncpy(api_company, value, 30);
-				} else if (strcasecmp(key, "SERVERADDRESS") == 0) {
-					strncpy(vcasServerAddress, value, 30);
-				} else if (strcasecmp(key, "SERVERPORT") == 0) {
-					VCAS_Port_SSL = atoi(value);
-				} else if (strcasecmp(key, "STOREPATH") == 0) {
-					path = 1;
-					set_dir(value);
-				} else if (strcasecmp(key, "PREFERRED_VKS") == 0) {
-					sscanf(value, "%30[^/]/%d", vksServerAddress, &VKS_Port_SSL);
-				} else if (strcasecmp(key, "MIN_KEY_RETRY_INTERVAL") == 0) {
-					key_interval = atoi(value);
-				} else if (strcasecmp(key, "ERRORLEVEL") == 0) {
-					debug_level = atoi(value);
-				} else if (strcasecmp(key, "AMINOMAC") == 0) {
-					strncpy(aminoMAC, value, 12);
-				}
-			}
-		}
-	} else {
-		LOG(ERROR, "[API] Unable to read configfile %s", f_config);
-		return -1;
-	}
-
-	LOG(INFO, "[API] Config file loaded");
-
-	if (!path)
-		set_dir("/var/cache/vmcam");
-
-	return -1;
 }
 
 int generate_rsa_pkey() {
@@ -227,6 +184,7 @@ int generate_rsa_pkey() {
 
 	BIO_free_all(bio);
 	free(pem_key);
+        pem_key = NULL;
 	return 0;
 }
 
@@ -462,6 +420,7 @@ int API_GetCertificate() {
 
 	if (response_len < 12) {
 		free(response_buffer);
+                response_buffer = NULL;
 		return -1;
 	}
 
@@ -475,6 +434,8 @@ int API_GetCertificate() {
 
 	free(response_buffer);
 	free(csr);
+        response_buffer = NULL;
+        csr = NULL;
 	return 0;
 }
 
@@ -522,12 +483,14 @@ int API_SaveEncryptedPassword() {
 
 	if (retlen < 8) {
 		free(response_buffer);
+                response_buffer = NULL;
 		return -1;
 	}
 
 	LOG(DEBUG, "[API] SaveEncryptedPassword completed, size: %d", retlen);
 
 	free(response_buffer);
+        response_buffer = NULL;
 	return 0;
 }
 
@@ -560,6 +523,7 @@ int API_GetEncryptedPassword() {
 
 	if (retlen < 8) {
 		free(response_buffer);
+                response_buffer = NULL;
 		return -1;
 	}
 
@@ -569,6 +533,7 @@ int API_GetEncryptedPassword() {
 	LOG(DEBUG, "[API] GetEncryptedPassword: %s", response_buffer+8);
 
 	free(response_buffer);
+        response_buffer = NULL;
 	return 0;
 }
 
@@ -610,6 +575,7 @@ int API_GetAllChannelKeys() {
 	vksServerAddress, (VKS_Port_SSL + 2));
 	if (retlen < 10) {
 		free(response_buffer);
+                response_buffer = NULL;
 		return -1;
 	}
 
@@ -626,11 +592,13 @@ int API_GetAllChannelKeys() {
 		fwrite(keyblock, retlen, 1, fp);
 		fclose(fp);
 		free(response_buffer);
+                response_buffer = NULL;
 		return 0;
 	} else {
 		LOG(ERROR, "[API] GetAllChannelKeys failed, could not write keyblock to %s", f_keyblock);	
 	}
 	free(response_buffer);
+        response_buffer = NULL;
 	return -1;
 }
 
@@ -639,10 +607,6 @@ int init_vmapi() {
 	ssl_client_init();
 
 	int exit_code = EXIT_FAILURE;
-
-	// Get client ID and machine ID
-	api_clientID = aminoMAC;
-	api_machineID = aminoMAC;
 
 	// Some configuration checks
 	if(VKS_Port_SSL == 0 || VKS_Port_SSL == 0) {
@@ -657,7 +621,7 @@ int init_vmapi() {
 		RETURN_ERR("Check your VKS server ip!");
 	}
 
-	if(strlen(aminoMAC) != 12) {
+	if(strlen(api_clientID) != 12) {
 		RETURN_ERR("Incorrect AMINOMAC length, length should be 12");
 	}
 
@@ -667,13 +631,6 @@ int init_vmapi() {
 
 	return EXIT_SUCCESS;
 cleanup:
-	if (api_clientID) {
-		free(api_clientID);
-	}
-
-	if (api_machineID) {
-		free(api_machineID);
-	}
 	return exit_code;
 }
 
@@ -738,9 +695,11 @@ retry:
 cleanup:
 	if (session_key) {
 		free(session_key);
+                session_key = NULL;
 	}
 	if (timestamp) {
 		free(timestamp);
+                timestamp = NULL;
 	}
 
 	return exit_code;
