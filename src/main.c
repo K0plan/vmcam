@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
 		printf("\t-sk [VKS address]\tSet VKS hostname to connect to\n");
 		printf("\t-ps [VCAS port]\t\tSet VCAS port number to connect to\n");
 		printf("\t-pk [VKS port]\t\tSet VKS port number to connect to\n");
-		printf("\t-pd [VKS port difference]\t\tSet difference between the VKS ports [default: 1]\n");
+		printf("\t-pd [VKS port diff]\tSet difference between the VKS ports [default: 1]\n");
 		printf("\t-C [Company name]\tSet name of company for key retreival\n");
 		printf("\t-t [interval]\t\tInterval for updating keys [default: 300]\n");
 		printf("\t-noinitial\t\tSkip initial keyblock retrieval\n\n");
