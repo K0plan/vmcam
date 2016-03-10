@@ -147,6 +147,7 @@ int main(int argc, char *argv[]) {
 	unsigned int vm_VCAS_port = 0;
 	unsigned int vm_VKS_port = 0;
 	unsigned int vm_key_interval = 300;
+	int vm_VKS_port_diff = 1;
 
 	unsigned int keyblockonly = 0;
 	unsigned int port_cs378x = 15080;
@@ -208,6 +209,8 @@ int main(int argc, char *argv[]) {
 	                                str_realloc_copy(&vm_VKS_server, value);
                                 } else if (strcmp(key, "VKSSERVERPORT") == 0) {
                                        	vm_VKS_port = atoi(value);
+                                } else if (strcmp(key, "VKSPORTDIFF") == 0) {
+                                       	vm_VKS_port_diff = atoi(value);
 				} else if (strcmp(key, "COMPANY") == 0) {
 					str_realloc_copy(&vm_api_company, value);
                                 } else if (strcmp(key, "KEY_INTERVAL") == 0) {
@@ -331,6 +334,13 @@ int main(int argc, char *argv[]) {
 				}
 				vm_VKS_port = atoi(argv[i+1]);
 				i++;
+		} else if (strcmp(argv[i], "-pd") == 0) {
+				if (i+1 >= argc) {
+					printf("Need to provide the VKS port difference\n");
+					return -1;
+				}
+				vm_VKS_port_diff = atoi(argv[i+1]);
+				i++;
 		} else if (strcmp(argv[i], "-sk") == 0) {
 				if (i+1 >= argc) {
 					printf("Need to provide the VKS address\n");
@@ -387,6 +397,7 @@ int main(int argc, char *argv[]) {
 		printf("\t-sk [VKS address]\tSet VKS hostname to connect to\n");
 		printf("\t-ps [VCAS port]\t\tSet VCAS port number to connect to\n");
 		printf("\t-pk [VKS port]\t\tSet VKS port number to connect to\n");
+		printf("\t-pd [VKS port difference]\t\tSet difference between the VKS ports [default: 1]\n");
 		printf("\t-C [Company name]\tSet name of company for key retreival\n");
 		printf("\t-t [interval]\t\tInterval for updating keys [default: 300]\n");
 		printf("\t-noinitial\t\tSkip initial keyblock retrieval\n\n");
@@ -401,7 +412,7 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	vm_config(vm_VCAS_server, vm_VCAS_port, vm_VKS_server, vm_VKS_port, vm_api_company, vm_cache_dir, vm_aminoMAC);
+	vm_config(vm_VCAS_server, vm_VCAS_port, vm_VKS_server, vm_VKS_port, vm_VKS_port_diff, vm_api_company, vm_cache_dir, vm_aminoMAC);
         free(vm_VCAS_server);
         free(vm_VKS_server);
         free(vm_api_company);

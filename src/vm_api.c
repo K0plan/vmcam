@@ -57,7 +57,8 @@
 char * vcasServerAddress = NULL;		// Your VCAS server address
 char * vksServerAddress = NULL;			// Your VCAS server address
 int VCAS_Port_SSL = 0;				// Your VCAS port
-int VKS_Port_SSL = 0;				// Your VKS port
+int VKS_Port_SSL = 0;				// Your primary VKS port
+int VKS_Port_diff = 0;				// Difference between the primary and secondary VKS port
 
 // API data
 char * api_company = NULL;				// Your company
@@ -119,7 +120,7 @@ void set_cache_dir(char* dir) {
 	f_dir = dir;
 }
 
-void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, char* dir, char* amino_mac) {
+void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, int vks_port_diff, char* company, char* dir, char* amino_mac) {
 	struct stat st = {0};
 
 	if (vcas_address != 0)
@@ -136,6 +137,9 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 
 	if (vks_port > 0)
 		VKS_Port_SSL = vks_port;
+
+	if (vks_port_diff != 0)
+		VKS_Port_diff = vks_port_diff;
 
 	if (dir != 0)
 		set_cache_dir(dir);
@@ -572,7 +576,7 @@ int API_GetAllChannelKeys() {
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-	vksServerAddress, (VKS_Port_SSL + 2));
+	vksServerAddress, (VKS_Port_SSL + VKS_Port_diff));
 	if (retlen < 10) {
 		free(response_buffer);
                 response_buffer = NULL;
