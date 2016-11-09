@@ -31,7 +31,6 @@ To clone the repository issue the following commands:
 	-sk [VKS address] Set VKS hostname to connect to
 	-ps [VCAS port]  Set VCAS port number to connect to
 	-pk [VKS port]  Set VKS port number to connect to
-	-pd [VKS port difference]  Set difference between the VKS ports [default: 1]
 	-C [Company name] Set name of company for key retrieval
 	-t [interval]  Interval for updating keys [default: 300]
 	-noinitial  Skip initial keyblock retrieval
@@ -55,7 +54,6 @@ In vmcam.ini you can use the following configuration options
 	VCASSERVERPORT=[VCAS port]
 	VKSSERVERADDRESS=[VKS address]
 	VKSSERVERPORT=[VKS port]
-	VKSPORTDIFF=[VKS port difference]
 	COMPANY=[Company name] 
 	KEY_INTERVAL=[Key update interval]
 	NEWCAMD_PORT=[Newcamd listening port]
