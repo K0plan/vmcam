@@ -25,14 +25,15 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <openssl/rc4.h>
-#include <openssl/md5.h>
-#include <openssl/rsa.h>
-#include <openssl/engine.h>
-#include <openssl/pem.h>
-#include <openssl/x509.h>
-#include <openssl/bio.h>
-#include <openssl/rand.h>
+//#include "openssl/bn.h"
+#include "openssl/rc4.h"
+#include "openssl/md5.h"
+#include "openssl/rsa.h"
+#include "openssl/engine.h"
+#include "openssl/pem.h"
+#include "openssl/x509.h"
+#include "openssl/bio.h"
+#include "openssl/rand.h"
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -77,7 +78,7 @@ char * szEmail = NULL;
 
 // Client data
 char api_clientID[13];
-char api_machineID[13];
+char api_machineID[57] = "0123456789abcd0123456789abcd0123456789abcd0123456789abcd";
 
 // Session data
 uchar * session_key = NULL;
@@ -99,9 +100,25 @@ char* strconcat(char* str1, char* str2) {
 		exit(-1);
 	}
 
-	strcpy(result, str1);
-	strcat(result, str2);
+	strncpy(result, str1, strlen(str1));
+	strncat(result, str2, strlen(str2));
 	return result;
+}
+
+/**
+ * add1155Header() prepends an 1155 header to @msg
+ * @param msg char** to which the header should be prepended
+ * @param encBytesCount length of encoded buffer which will follow @msg
+ * @return int length of message with header and encoded buffer
+ */
+int add1155Header(char** msg, int encBytesCount) {
+    char* header = malloc(12);
+    int len = 11 + strlen(*msg) + encBytesCount;
+    snprintf(header, 12, "1155~%05i~", len);
+    char* oldmsg = *msg;
+    *msg = strconcat(header, *msg);
+    free(oldmsg);
+    return len;
 }
 
 void set_cache_dir(char* dir) {
@@ -142,7 +159,7 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 
 	if (amino_mac != 0) {
 		memcpy(api_clientID, amino_mac, 12);
-                memcpy(api_machineID, amino_mac, 12);
+//                memcpy(api_machineID, amino_mac, 12);
         }
 
 	if (stat(f_dir, &st) == -1) {
@@ -160,7 +177,7 @@ int generate_rsa_pkey() {
 	const int kExp = 3;
 	int keylen;
 	char *pem_key;
-
+        
 	rsa_priv_key = RSA_generate_key(kBits, kExp, 0, 0);
 
 	/* To get the C-string PEM form: */
@@ -196,7 +213,8 @@ int load_rsa_pkey(RSA ** rsa_priv_key) {
 		LOG(DEBUG, "[API] Private key found");
 		*rsa_priv_key = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL);
 	} else {
-		if (generate_rsa_pkey() < 0)
+                LOG(DEBUG, "[API] No private key found, generating new key");
+                if (generate_rsa_pkey() < 0)
 			return -1;
 
 		fp = fopen(f_rsa_private_key, "r");
@@ -342,7 +360,7 @@ int generate_ski_string() {
 	char* buf2 = ski = calloc(40 + 1, 1);
 	X509 * signed_cert = 0;
 	X509_EXTENSION *ext;
-
+        
 	fp = fopen(f_signedcert, "r");
 	if (fp) {
 		signed_cert = d2i_X509_fp(fp, &signed_cert);
@@ -368,9 +386,10 @@ int generate_ski_string() {
 
 int API_GetSessionKey() {
 	uchar response_buffer[64];
-	uchar msg[128];
-	int msglen = sprintf((char*) msg, "%s~%s~CreateSessionKey~%s~%s~",
-			api_msgformat, api_clientID, api_company, api_machineID);
+	char* msg = malloc(128);
+        sprintf((char*) msg, "%s~CreateSessionKey~%s~%s~",
+			api_clientID, api_company, api_machineID);
+	int msglen = add1155Header(&msg, 0);
 
 	LOG(DEBUG, "[API] Requesting Session Key: %s", msg);
 
@@ -378,6 +397,7 @@ int API_GetSessionKey() {
 	VCAS_Port_SSL) < 45) {
 		return -1;
 	}
+        free(msg);
 	session_key = calloc(16, 1);
 	timestamp = calloc(20, 1);
 	memcpy(session_key, response_buffer + 4, 16);
@@ -392,26 +412,27 @@ int API_GetCertificate() {
 	char * csr;
 	int response_len;
 	int msglen;
-	uchar msg[2048];
+	char* msg = malloc(2048);
 	uchar * response_buffer = calloc(2048, 1);
 	/******* Get the current time64 *******/
 	long long unsigned int t64 = (long long unsigned int) time(NULL);
 
 	/******* Generate the CSR *******/
 	LOG(DEBUG, "[API] Generating CSR");
-	szEmail = calloc(64, 1);
+	szEmail = calloc(128, 1);
 	sprintf(szEmail, "%s.%llu@Verimatrix.com", api_machineID, t64);
 	LOG(DEBUG, "[API] Using email: %s", szEmail);
 	generate_csr(&csr);
-
+        LOG(DEBUG, "[API] CSR generated, sending...");
 	/******* Generate the request string *******/
-	msglen =
-			sprintf((char*) msg,
-					"%s~%s~getCertificate~%s~NA~NA~%s~%s~%s~ ~%s~%s~%s~%s~%s~%s~%s~%s~",
-					api_msgformat, api_clientID, api_company, csr,
-					szCommon, szAddress, szCity, szProvince, szZipCode, szCountry, szTelephone, szEmail,
-					api_machineID, szChallengePassword);
-
+        sprintf((char*) msg,
+                        "%s~getCertificate~%s~NA~NA~%s~%s~%s~ ~%s~%s~%s~%s~%s~%s~%s~%s~",
+                        api_clientID, api_company, csr,
+                        szCommon, szAddress, szCity, szProvince, szZipCode, szCountry, szTelephone, szEmail,
+                        api_machineID, szChallengePassword);
+        
+        msglen = add1155Header(&msg, 0);
+	
 	LOG(VERBOSE, "[API] Requesting Certificate: %s", msg);
 
 	/******* Send the request *******/
@@ -423,6 +444,7 @@ int API_GetCertificate() {
                 response_buffer = NULL;
 		return -1;
 	}
+        free(msg);
 
 	/******* Get the Signed cert from the response *******/
 	cert = response_buffer + 12;
