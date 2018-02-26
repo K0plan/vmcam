@@ -25,15 +25,14 @@
 #include <stddef.h>
 #include <string.h>
 
-//#include "openssl/bn.h"
-#include "openssl/rc4.h"
-#include "openssl/md5.h"
-#include "openssl/rsa.h"
-#include "openssl/engine.h"
-#include "openssl/pem.h"
-#include "openssl/x509.h"
-#include "openssl/bio.h"
-#include "openssl/rand.h"
+#include <openssl/rc4.h>
+#include <openssl/md5.h>
+#include <openssl/rsa.h>
+#include <openssl/engine.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/bio.h>
+#include <openssl/rand.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -61,8 +60,8 @@ int VCAS_Port_SSL = 0;				// Your VCAS port
 int VKS_Port_SSL = 0;				// Your primary VKS port
 
 // API data
-char * api_company = NULL;				// Your company
-const char * api_msgformat = "1154"; 		// Only 1154 is supported for now
+char * api_company = NULL;			// Your company
+int api_msgformat;
 
 // Cert data
 const char * szAddress = "6650 Lusk Blvd, Suite B203";
@@ -78,7 +77,7 @@ char * szEmail = NULL;
 
 // Client data
 char api_clientID[13];
-char api_machineID[57] = "0123456789abcd0123456789abcd0123456789abcd0123456789abcd";
+char api_machineID[13];
 
 // Session data
 uchar * session_key = NULL;
@@ -100,25 +99,33 @@ char* strconcat(char* str1, char* str2) {
 		exit(-1);
 	}
 
-	strncpy(result, str1, strlen(str1));
-	strncat(result, str2, strlen(str2));
+	strncpy(result, str1, strlen(str1)+1);
+	strncat(result, str2, strlen(str2)+1);
 	return result;
 }
 
 /**
- * add1155Header() prepends an 1155 header to @msg
+ * addHeader() prepends a header to @msg according to @version
  * @param msg char** to which the header should be prepended
- * @param encBytesCount length of encoded buffer which will follow @msg
- * @return int length of message with header and encoded buffer
+ * @param version int protocol version to use
+ * @return int length of message with header
  */
-int add1155Header(char** msg, int encBytesCount) {
-    char* header = malloc(12);
-    int len = 11 + strlen(*msg) + encBytesCount;
-    snprintf(header, 12, "1155~%05i~", len);
-    char* oldmsg = *msg;
-    *msg = strconcat(header, *msg);
-    free(oldmsg);
-    return len;
+int addHeader(char** msg, int version) {
+    if (version == 1155) {
+        char header[12];
+        int len = 11 + strlen(*msg);
+        sprintf(header, "1155~%05i~", len);
+        char* oldmsg = *msg;
+        *msg = strconcat(header, *msg);
+        free(oldmsg);
+        return len;
+    } else if (version == 1154) {
+        char header[] = "1154~";
+        char* oldmsg = *msg;
+        *msg = strconcat(header, *msg);
+        free(oldmsg);
+        return strlen(*msg);        
+    }
 }
 
 void set_cache_dir(char* dir) {
@@ -136,8 +143,11 @@ void set_cache_dir(char* dir) {
 	f_dir = dir;
 }
 
-void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, unsigned int vks_port, char* company, char* dir, char* amino_mac) {
-	struct stat st = {0};
+void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address,
+            unsigned int vks_port, char* company, char* dir, char* amino_mac,
+            int protocolVersion) {
+	
+        struct stat st = {0};
 
 	if (vcas_address != 0)
 		str_realloc_copy(&vcasServerAddress, vcas_address);
@@ -158,8 +168,12 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address, un
 		set_cache_dir(dir);
 
 	if (amino_mac != 0) {
-		memcpy(api_clientID, amino_mac, 12);
-//                memcpy(api_machineID, amino_mac, 12);
+		memcpy(api_clientID, amino_mac, 13);
+                memcpy(api_machineID, amino_mac, 13);
+        }
+        
+	if (protocolVersion != 0) {
+            api_msgformat = protocolVersion;
         }
 
 	if (stat(f_dir, &st) == -1) {
@@ -389,7 +403,7 @@ int API_GetSessionKey() {
 	char* msg = malloc(128);
         sprintf((char*) msg, "%s~CreateSessionKey~%s~%s~",
 			api_clientID, api_company, api_machineID);
-	int msglen = add1155Header(&msg, 0);
+	int msglen = addHeader(&msg, api_msgformat);
 
 	LOG(DEBUG, "[API] Requesting Session Key: %s", msg);
 
@@ -431,7 +445,7 @@ int API_GetCertificate() {
                         szCommon, szAddress, szCity, szProvince, szZipCode, szCountry, szTelephone, szEmail,
                         api_machineID, szChallengePassword);
         
-        msglen = add1155Header(&msg, 0);
+        msglen = addHeader(&msg, api_msgformat);
 	
 	LOG(VERBOSE, "[API] Requesting Certificate: %s", msg);
 
@@ -462,14 +476,14 @@ int API_GetCertificate() {
 }
 
 int API_SaveEncryptedPassword() {
-	uchar msg[512];
+	char* msg = malloc(512);
 	uchar * response_buffer = calloc(1024, 1);
 	uchar password[65];
 	uchar random[32];
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
 	int i;
-	uchar unencryptedAPICompare[128];
+	char* unencryptedAPICompare = malloc(128);
 
 	if (!RAND_bytes(random, 32)) {
 		return -1;
@@ -488,13 +502,16 @@ int API_SaveEncryptedPassword() {
 		return -1;
 	}
 
-	plainlen = sprintf((char*) unencryptedAPICompare, "%s~%s~%s~%s~",
-			api_msgformat, api_company, timestamp, api_machineID);
-
-	msglen = sprintf((char*) msg,
-			"%s~%s~%s~%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", api_msgformat,
+	sprintf((char*) unencryptedAPICompare, "%s~%s~%s~",
+			api_company, timestamp, api_machineID);
+        plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
+	free(unencryptedAPICompare);
+        
+        sprintf((char*) msg,
+			"%s~%s~%s~%s~SaveEncryptedPassword~%s~%s~%d~%s~", 
 			api_company, timestamp, api_machineID, api_clientID, api_company, ski, 64, password);
-
+        msglen = addHeader(&msg, api_msgformat); 
+                
 	LOG(VERBOSE, "[API] Save encryption password: %s", msg);
 
 	RC4_set_key(&rc4key, 16, session_key);
@@ -502,7 +519,8 @@ int API_SaveEncryptedPassword() {
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, 1024,
 	vcasServerAddress, VCAS_Port_SSL+1);
-
+        free(msg);
+        
 	if (retlen < 8) {
 		free(response_buffer);
                 response_buffer = NULL;
@@ -517,31 +535,36 @@ int API_SaveEncryptedPassword() {
 }
 
 int API_GetEncryptedPassword() {
-	uchar msg[512];
+	char* msg = malloc(512);
 	uchar * response_buffer = calloc(1024, 1);
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
-	uchar unencryptedAPICompare[128];
+	char* unencryptedAPICompare = malloc(128);
 
 	if (response_buffer == NULL) {
 		LOG(ERROR, "[API] GetEncryptedPassword failed, unable to allocate memory");
 		return -1;
 	}
 
-	plainlen = sprintf((char*) unencryptedAPICompare, "%s~%s~%s~%s~",
-			api_msgformat, api_company, timestamp, api_machineID);
-
-	msglen = sprintf((char*) msg,
-			"%s~%s~%s~%s~%s~GetEncryptedPassword~%s~%s~", api_msgformat,
+	sprintf((char*) unencryptedAPICompare, "%s~%s~%s~",
+			api_company, timestamp, api_machineID);
+        plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
+        free(unencryptedAPICompare);
+        
+	sprintf((char*) msg,
+			"%s~%s~%s~%s~GetEncryptedPassword~%s~%s~",
 			api_company, timestamp, api_machineID, api_clientID, api_company, ski);
-
-	LOG(VERBOSE, "[API] Get encryption password: %s", msg);
+        
+        msglen = addHeader(&msg, api_msgformat);
+	
+        LOG(VERBOSE, "[API] Get encryption password: %s", msg);
 
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, 1024,
 	vcasServerAddress, VCAS_Port_SSL+1);
+        free(msg);
 
 	if (retlen < 8) {
 		free(response_buffer);
@@ -561,32 +584,34 @@ int API_GetEncryptedPassword() {
 
 int API_GetAllChannelKeys() {
 	uchar * signedhash = 0;
-	uchar msg[512];
+	char* msg = malloc(512);
 	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
 	uchar * keyblock;
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
 	FILE * fp;
-	uchar unencryptedAPICompare[128];
+	char* unencryptedAPICompare = malloc(128);
 
 	if (response_buffer == NULL) {
 		LOG(ERROR, "[API] GetAllChannelKeys failed, unable to allocate memory");
 		return -1;
 	}
 
-	plainlen = sprintf((char*) unencryptedAPICompare, "%s~%s~%s~%s~",
-			api_msgformat, api_company, timestamp, api_machineID);
-
+	sprintf((char*) unencryptedAPICompare, "%s~%s~%s~",
+			api_company, timestamp, api_machineID);
+        plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
+        free(unencryptedAPICompare);
+        
 	if (generate_signed_hash(&signedhash) < 0) {
 		OPENSSL_free(signedhash);
 		return -1;
 	}
 
-	msglen = sprintf((char*) msg,
-			"%s~%s~%s~%s~%s~GetAllChannelKeys~%s~%s~%s~%s~ ~ ~", api_msgformat,
+	sprintf((char*) msg,
+			"%s~%s~%s~%s~GetAllChannelKeys~%s~%s~%s~%s~ ~ ~",
 			api_company, timestamp, api_machineID, api_clientID, api_company, ski,
 			signedhash, api_machineID);
-
+        msglen = addHeader(&msg, api_msgformat);
 	OPENSSL_free(signedhash);
 
 	LOG(VERBOSE, "[API] Requesting master keys: %s", msg);
@@ -595,6 +620,7 @@ int API_GetAllChannelKeys() {
 
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
 	vksServerAddress, VKS_Port_SSL);
+        free(msg);
 	if (retlen < 10) {
 		free(response_buffer);
                 response_buffer = NULL;

@@ -159,7 +159,8 @@ int main(int argc, char *argv[]) {
         
 	char * config = NULL;
 	char * host = NULL;
-	int debug = -1;
+	int vm_protocolVersion = 1154;
+        int debug = -1;
 	struct handler newcamd_handler, cs378x_handler;
 	pthread_t thread;
 	debug_level = 0;
@@ -198,8 +199,11 @@ int main(int argc, char *argv[]) {
                                         str_realloc_copy(&vm_cache_dir, value);
                                 } else if (strcmp(key, "DEBUG_LEVEL") == 0) {
                                         debug_level = atoi(value);
+                                } else if (strcmp(key, "PROTOCOL") == 0) {
+                                        vm_protocolVersion = atoi(value);
                                	} else if (strcmp(key, "AMINOMAC") == 0) {
 	                                strncpy(vm_aminoMAC, value, 12);
+                                        vm_aminoMAC[12] = '\0';
 				} else if (strcmp(key, "VCASSERVERADDRESS") == 0) {
 	                                str_realloc_copy(&vm_VCAS_server, value);
                                 } else if (strcmp(key, "VCASSERVERPORT") == 0) {
@@ -278,6 +282,13 @@ int main(int argc, char *argv[]) {
 					return -1;
 				}
 				debug_level = debug = atoi(argv[i+1]);
+				i++;
+		} else if (strcmp(argv[i], "-m") == 0) {
+				if (i+1 >= argc) {
+					printf("Need to provide a protocol version\n");
+					return -1;
+				}
+				vm_protocolVersion = atoi(argv[i+1]);
 				i++;
 		} else if (strcmp(argv[i], "-u") == 0) {
 				if (i+1 >= argc) {
@@ -383,6 +394,7 @@ int main(int argc, char *argv[]) {
 		printf("  VCAS/VKS:\n\n");
 		printf("\t-c [configfile]\t\tVCAS configfile [default: vmcam.ini]\n");
 		printf("\t-a [Amino MAC]\t\tYour Amino MAC address [format: 010203040506]\n");
+		printf("\t-m [protocol version]\tProtocol verion to use [1154 and 1155 supported]\n");
 		printf("\t-ss [VCAS address]\tSet VCAS hostname to connect to\n");
 		printf("\t-sk [VKS address]\tSet VKS hostname to connect to\n");
 		printf("\t-ps [VCAS port]\t\tSet VCAS port number to connect to\n");
@@ -401,7 +413,7 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	vm_config(vm_VCAS_server, vm_VCAS_port, vm_VKS_server, vm_VKS_port, vm_api_company, vm_cache_dir, vm_aminoMAC);
+	vm_config(vm_VCAS_server, vm_VCAS_port, vm_VKS_server, vm_VKS_port, vm_api_company, vm_cache_dir, vm_aminoMAC, vm_protocolVersion);
         free(vm_VCAS_server);
         free(vm_VKS_server);
         free(vm_api_company);

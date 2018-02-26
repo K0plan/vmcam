@@ -96,6 +96,9 @@ of `autoconf'.
 OpenSSL issues with certain servers
 ===================================
 
+   Building this package will fail with libssl1.1 due to changes in their
+libraries. The build has been tested against libssl1.0. You should preferably
+use any version lower than 1.0.2a due to the issue below.
    Some (if not all) VCAS servers use small DH keys of less than 768
 bits for their connections. Newer versions of libssl will not accept
 these small keys and as a result they will fail to make a connection.

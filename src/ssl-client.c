@@ -129,7 +129,7 @@ int ssl_client_send(unsigned char * msg, uint16_t msglen,
 	/* Perform SSL Handshake on the SSL client */
 	err = SSL_connect(ssl_sock);
 
-	RETURN_SSL(err);
+        RETURN_SSL(err);
 
 	/* Informational output (optional) */
 	LOG(DEBUG, "[ssl-client] SSL connection using %s", SSL_get_cipher(ssl_sock));
