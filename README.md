@@ -27,7 +27,8 @@ To clone the repository issue the following commands:
 
 	-c [configfile]  VCAS configfile [default: vmcam.ini]
 	-a [Amino MAC]  Your Amino MAC address [format: 010203040506]
-        -m [protocol version] Protocol verion to use [1154 (default) and 1155 supported]
+	-i [Machine ID]  Your Amino Machine ID [default: <Amino MAC>]
+	-m [protocol version] Protocol verion to use [1154 (default) and 1155 supported]
 	-ss [VCAS address] Set VCAS hostname to connect to
 	-sk [VKS address] Set VKS hostname to connect to
 	-ps [VCAS port]  Set VCAS port number to connect to
@@ -51,7 +52,8 @@ In vmcam.ini you can use the following configuration options
 	CACHE_DIR=[Cache directory, default /var/cache/vmcam]
 	DEBUG_LEVEL=[Debug level]
 	AMINOMAC=[MAC address of your Amino]
-        PROTOCOL=[Protocol version to use, 1154 (default) or 1155]
+	MACHINEID=[Machine ID of your Amino]
+	PROTOCOL=[Protocol version to use, 1154 (default) or 1155]
 	VCASSERVERADDRESS=[VCAS address]
 	VCASSERVERPORT=[VCAS port]
 	VKSSERVERADDRESS=[VKS address]
