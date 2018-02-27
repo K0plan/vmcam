@@ -77,7 +77,7 @@ char * szEmail = NULL;
 
 // Client data
 char api_clientID[13];
-char api_machineID[13];
+char api_machineID[64];
 
 // Session data
 uchar * session_key = NULL;
@@ -145,7 +145,7 @@ void set_cache_dir(char* dir) {
 
 void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address,
             unsigned int vks_port, char* company, char* dir, char* amino_mac,
-            int protocolVersion) {
+            char* machine_id, int protocolVersion) {
 	
         struct stat st = {0};
 
@@ -169,7 +169,12 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address,
 
 	if (amino_mac != 0) {
 		memcpy(api_clientID, amino_mac, 13);
-                memcpy(api_machineID, amino_mac, 13);
+        }
+	
+        if (machine_id != 0) {
+	    memcpy(api_machineID, machine_id, 64);
+        } else if (amino_mac != 0) {
+            memcpy(api_machineID, amino_mac, 13);
         }
         
 	if (protocolVersion != 0) {

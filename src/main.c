@@ -140,7 +140,8 @@ int main(int argc, char *argv[]) {
 
 	// vm_api config
 	char * vm_api_company = NULL;
-	char vm_aminoMAC[13];
+	char * vm_aminoMAC = NULL;
+	char * vm_machineID = NULL;
 	char * vm_cache_dir = NULL;
 	char * vm_VCAS_server = NULL;
 	char * vm_VKS_server = NULL;
@@ -177,6 +178,7 @@ int main(int argc, char *argv[]) {
 	str_realloc_copy(&host, "0.0.0.0");
 	str_realloc_copy(&user, "user");
 	str_realloc_copy(&pass, "pass");
+        str_realloc_copy(&vm_aminoMAC, "001122334455");
         memcpy(des_key, default_des_key, 14);
         
 	// Load config file first...
@@ -204,6 +206,10 @@ int main(int argc, char *argv[]) {
                                	} else if (strcmp(key, "AMINOMAC") == 0) {
 	                                strncpy(vm_aminoMAC, value, 12);
                                         vm_aminoMAC[12] = '\0';
+                               	} else if (strcmp(key, "MACHINEID") == 0) {
+                                        vm_machineID = malloc(64);
+	                                strncpy(vm_machineID, value, 64);
+                                        vm_machineID[63] = '\0';
 				} else if (strcmp(key, "VCASSERVERADDRESS") == 0) {
 	                                str_realloc_copy(&vm_VCAS_server, value);
                                 } else if (strcmp(key, "VCASSERVERPORT") == 0) {
@@ -256,7 +262,7 @@ int main(int argc, char *argv[]) {
 					printf("Need to provide a MAC address\n");
 					return -1;
 				}
-				strncpy(vm_aminoMAC, value, 12);
+				strncpy(vm_aminoMAC, argv[i+1], 12);
 				i++;
 		} else if (strcmp(argv[i], "-pn") == 0) {
 				if (keyblockonly == 1)
@@ -282,6 +288,14 @@ int main(int argc, char *argv[]) {
 					return -1;
 				}
 				debug_level = debug = atoi(argv[i+1]);
+				i++;
+		} else if (strcmp(argv[i], "-i") == 0) {
+				if (i+1 >= argc) {
+					printf("Need to provide a machine ID\n");
+					return -1;
+				}
+                                vm_machineID = malloc(64);
+				strncpy(vm_machineID, argv[i+1], 64);
 				i++;
 		} else if (strcmp(argv[i], "-m") == 0) {
 				if (i+1 >= argc) {
@@ -394,6 +408,7 @@ int main(int argc, char *argv[]) {
 		printf("  VCAS/VKS:\n\n");
 		printf("\t-c [configfile]\t\tVCAS configfile [default: vmcam.ini]\n");
 		printf("\t-a [Amino MAC]\t\tYour Amino MAC address [format: 010203040506]\n");
+		printf("\t-i [Machine ID]\t\tYour Amino machine ID [default: <Amino MAC>]\n");
 		printf("\t-m [protocol version]\tProtocol verion to use [1154 and 1155 supported]\n");
 		printf("\t-ss [VCAS address]\tSet VCAS hostname to connect to\n");
 		printf("\t-sk [VKS address]\tSet VKS hostname to connect to\n");
@@ -413,11 +428,14 @@ int main(int argc, char *argv[]) {
 		return -1;
 	}
 
-	vm_config(vm_VCAS_server, vm_VCAS_port, vm_VKS_server, vm_VKS_port, vm_api_company, vm_cache_dir, vm_aminoMAC, vm_protocolVersion);
+	vm_config(vm_VCAS_server, vm_VCAS_port, vm_VKS_server, vm_VKS_port, vm_api_company, vm_cache_dir, vm_aminoMAC, vm_machineID, vm_protocolVersion);
         free(vm_VCAS_server);
         free(vm_VKS_server);
         free(vm_api_company);
         free(vm_cache_dir);
+        if (vm_machineID != NULL) {
+            free(vm_machineID);
+        }
         vm_VCAS_server = NULL;
         vm_VKS_server = NULL;
         vm_api_company = NULL;
