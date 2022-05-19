@@ -49,7 +49,7 @@
 #include "var_func.h"
 
 #define uchar unsigned char
-#define GETKEYS_BUFFSIZE (1024 * 100)
+#define GETKEYS_BUFFSIZE (1024 * 100 * 2)
 
 #define RETURN_ERR(s) LOG(ERROR, "[API] %s", s); goto cleanup;
 
