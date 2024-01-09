@@ -587,7 +587,7 @@ int API_GetEncryptedPassword() {
 	return 0;
 }
 
-int API_GetMovieKeyDB() {
+int API_GetSingleChannelKey() {
 	uchar * signedhash = 0;
 	char* msg = malloc(512);
 	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
@@ -598,7 +598,7 @@ int API_GetMovieKeyDB() {
 	char* unencryptedAPICompare = malloc(128);
 
 	if (response_buffer == NULL) {
-		LOG(ERROR, "[API] GetMovieKeyDB failed, unable to allocate memory");
+		LOG(ERROR, "[API] GetSingleChannelKey failed, unable to allocate memory");
 		return -1;
 	}
 
@@ -613,7 +613,7 @@ int API_GetMovieKeyDB() {
 	}
 
 	sprintf((char*) msg,
-			"%s~%s~%s~%s~GetMovieKeyDB~%s~%s~%s~%s~ ~ ~",
+			"%s~%s~%s~%s~GetSingleChannelKey~%s~%s~%s~%s~ ~ ~",
 			api_company, timestamp, api_machineID, api_clientID, api_company, ski,
 			signedhash, api_machineID);
         msglen = addHeader(&msg, api_msgformat);
@@ -635,7 +635,7 @@ int API_GetMovieKeyDB() {
 	keyblock = response_buffer + 4;
 	retlen -= 4;
 
-	LOG(INFO, "[API] GetMovieKeyDB completed, size: %d", retlen);
+	LOG(INFO, "[API] GetSingleChannelKey completed, size: %d", retlen);
 
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, retlen, keyblock, keyblock);
@@ -648,7 +648,7 @@ int API_GetMovieKeyDB() {
                 response_buffer = NULL;
 		return 0;
 	} else {
-		LOG(ERROR, "[API] GetMovieKeyDB failed, could not write keyblock to %s", f_keyblock);	
+		LOG(ERROR, "[API] GetSingleChannelKey failed, could not write keyblock to %s", f_keyblock);	
 	}
 	free(response_buffer);
         response_buffer = NULL;
@@ -726,8 +726,8 @@ retry:
 	sleep(1);
 
 	// Get the Master Keys
-	if(API_GetMovieKeyDB() < 0) {
-		LOG(ERROR, "[API] GetMovieKeyDB failed");
+	if(API_GetSingleChannelKey() < 0) {
+		LOG(ERROR, "[API] GetSingleChannelKey failed");
 		if(retry_count < 2){
 			retry_count += 1;
 			LOG(INFO, "[API] Will cleanup and retry in 5 seconds... Retry count: %d", retry_count);
