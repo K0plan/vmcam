@@ -49,7 +49,7 @@
 #include "var_func.h"
 
 #define uchar unsigned char
-#define GETKEYS_BUFFSIZE (1024 * 100)
+#define GETKEYS_BUFFSIZE (1024 * 100 * 2)
 
 #define RETURN_ERR(s) LOG(ERROR, "[API] %s", s); goto cleanup;
 
@@ -91,17 +91,17 @@ char * f_rsa_private_key = NULL;
 char * f_keyblock = NULL;
 char * f_dir = NULL;
 
-char* strconcat(char* str1, char* str2) {
-	int length = strlen(str1) + strlen(str2) + 1;
-	char* result = malloc(length);
-	if (result == NULL) {
-		LOG(ERROR, "[API] Not enough memory");
-		exit(-1);
-	}
-
-	strncpy(result, str1, strlen(str1)+1);
-	strncat(result, str2, strlen(str2)+1);
-	return result;
+char* strconcat(const char* str1, const char* str2) {
+  size_t len1 = strlen(str1);
+  size_t len2 = strlen(str2);
+  char* result = malloc(len1 + len2 + 1);
+  if (result == NULL) {
+    LOG(ERROR, "[API] Not enough memory");
+    exit(-1);
+  }
+  memcpy(result, str1, len1);
+  memcpy(result + len1, str2, len2 + 1); // +1 to copy the null-terminating character
+  return result;
 }
 
 /**
