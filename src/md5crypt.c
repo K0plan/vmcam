@@ -136,19 +136,19 @@ md5_crypt(const char *pw, const char *salt)
 	}
 
 	p = passwd + strlen(passwd);
-
-	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
-	strncat(passwd, to64(l, 4), sizeof(passwd));
-	l = (final[ 1]<<16) | (final[ 7]<<8) | final[13];
-	strncat(passwd, to64(l, 4), sizeof(passwd));
-	l = (final[ 2]<<16) | (final[ 8]<<8) | final[14];
-	strncat(passwd, to64(l, 4), sizeof(passwd));
-	l = (final[ 3]<<16) | (final[ 9]<<8) | final[15];
-	strncat(passwd, to64(l, 4), sizeof(passwd));
-	l = (final[ 4]<<16) | (final[10]<<8) | final[ 5];
-	strncat(passwd, to64(l, 4), sizeof(passwd));
-	l =                    final[11]                ;
-	strncat(passwd, to64(l, 2), sizeof(passwd));
+	
+        l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
+        strncat(passwd, to64(l, 4), sizeof(passwd) - strlen(passwd) - 1);
+        l = (final[ 1]<<16) | (final[ 7]<<8) | final[13];
+        strncat(passwd, to64(l, 4), sizeof(passwd) - strlen(passwd) - 1);
+        l = (final[ 2]<<16) | (final[ 8]<<8) | final[14];
+        strncat(passwd, to64(l, 4), sizeof(passwd) - strlen(passwd) - 1);
+        l = (final[ 3]<<16) | (final[ 9]<<8) | final[15];
+        strncat(passwd, to64(l, 4), sizeof(passwd) - strlen(passwd) - 1);
+        l = (final[ 4]<<16) | (final[10]<<8) | final[ 5];
+        strncat(passwd, to64(l, 4), sizeof(passwd) - strlen(passwd) - 1);
+        l =                    final[11]                ;
+        strncat(passwd, to64(l, 2), sizeof(passwd) - strlen(passwd) - 1);
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final, 0, sizeof(final));
