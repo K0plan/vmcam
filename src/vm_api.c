@@ -715,7 +715,7 @@ retry:
 	sleep(1);
 
 	// Get the Master Keys
-	if(API_GetSingleChannelKey() < 0) {
+	if(API_GetSingleChannelKey(9364) < 0) {
 		LOG(ERROR, "[API] GetSingleChannelKey failed");
 		if(retry_count < 2){
 			retry_count += 1;
