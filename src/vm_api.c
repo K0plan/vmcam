@@ -587,14 +587,12 @@ int API_GetEncryptedPassword() {
 	return 0;
 }
 
-int API_GetSingleChannelKey() {
-	uchar * signedhash = 0;
+int API_GetSingleChannelKey(const char* channelID) {
+	uchar* signedhash = 0;
 	char* msg = malloc(512);
-	uchar * response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
-	uchar * keyblock;
+	uchar* response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
 	int msglen, retlen, plainlen;
 	RC4_KEY rc4key;
-	FILE * fp;
 	char* unencryptedAPICompare = malloc(128);
 
 	if (response_buffer == NULL) {
@@ -604,57 +602,48 @@ int API_GetSingleChannelKey() {
 
 	sprintf((char*) unencryptedAPICompare, "%s~%s~%s~",
 			api_company, timestamp, api_machineID);
-        plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
-        free(unencryptedAPICompare);
-        
+	plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
+	free(unencryptedAPICompare);
+
+	// Генерация подписанного хэша
 	if (generate_signed_hash(&signedhash) < 0) {
 		OPENSSL_free(signedhash);
 		return -1;
 	}
 
-	sprintf((char*) msg,
-			"%s~%s~%s~%s~GetSingleChannelKey~%s~%s~%s~%s~ ~ ~",
-			api_company, timestamp, api_machineID, api_clientID, api_company, ski,
-			signedhash, api_machineID);
-        msglen = addHeader(&msg, api_msgformat);
-	OPENSSL_free(signedhash);
+	// Формирование сообщения с ID конкретного канала
+	sprintf((char*)msg,
+		"%s~%s~%s~%s~GetSingleChannelKey~%s~%s~%s~%s~%s~",
+		api_company, timestamp, api_machineID, api_clientID, api_company, ski,
+		signedhash, api_machineID, channelID);
+	msglen = addHeader(&msg, api_msgformat);
 
-	LOG(VERBOSE, "[API] Requesting master keys: %s", msg);
+	LOG(VERBOSE, "[API] Requesting Single Channel Key for channel ID: %s", channelID);
+
 	RC4_set_key(&rc4key, 16, session_key);
 	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
+	// Отправка запроса
 	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-	vksServerAddress, VKS_Port_SSL);
-        free(msg);
-	if (retlen < 10) {
+	                         vcasServerAddress, VCAS_Port_SSL + 1);
+	free(msg);
+
+	if (retlen < 8) {
 		free(response_buffer);
-                response_buffer = NULL;
+		OPENSSL_free(signedhash);
+		LOG(ERROR, "[API] GetSingleChannelKey failed, invalid response size");
 		return -1;
 	}
 
-	keyblock = response_buffer + 4;
-	retlen -= 4;
-
-	LOG(INFO, "[API] GetSingleChannelKey completed, size: %d", retlen);
-
 	RC4_set_key(&rc4key, 16, session_key);
-	RC4(&rc4key, retlen, keyblock, keyblock);
+	RC4(&rc4key, retlen - 4, response_buffer + 4, response_buffer + 4);
 
-	fp = fopen(f_keyblock, "w");
-	if (fp) {
-		fwrite(keyblock, retlen, 1, fp);
-		fclose(fp);
-		free(response_buffer);
-                response_buffer = NULL;
-		return 0;
-	} else {
-		LOG(ERROR, "[API] GetSingleChannelKey failed, could not write keyblock to %s", f_keyblock);	
-	}
+	LOG(DEBUG, "[API] GetSingleChannelKey Response: %s", response_buffer + 8);
+
 	free(response_buffer);
-        response_buffer = NULL;
-	return -1;
+	OPENSSL_free(signedhash);
+	return 0;
 }
-
 int init_vmapi() {
 	// Init SSL Client
 	ssl_client_init();
