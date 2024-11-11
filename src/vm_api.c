@@ -38,7 +38,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <net/if.h>   //ifreq
+#include <net/if.h>   // ifreq
 #include <net/if_arp.h>
 
 #include "vm_api.h"
@@ -49,59 +49,59 @@
 #include "var_func.h"
 
 #define uchar unsigned char
-#define GETKEYS_BUFFSIZE (1024 * 100 * 2)
+#define GETKEYS_BUFFSIZE (1024 * 100)
 
 #define RETURN_ERR(s) LOG(ERROR, "[API] %s", s); goto cleanup;
 
-// Connection data
-char * vcasServerAddress = NULL;		// Your VCAS server address
-char * vksServerAddress = NULL;			// Your VCAS server address
-int VCAS_Port_SSL = 0;				// Your VCAS port
-int VKS_Port_SSL = 0;				// Your primary VKS port
+// Данные подключения
+char *vcasServerAddress = NULL;     // Адрес VCAS сервера
+char *vksServerAddress = NULL;      // Адрес VKS сервера
+int VCAS_Port_SSL = 0;              // Порт VCAS
+int VKS_Port_SSL = 0;               // Основной порт VKS
 
-// API data
-char * api_company = NULL;			// Your company
+// API данные
+char *api_company = NULL;           // Название компании
 int api_msgformat;
 
-// Cert data
-const char * szAddress = "6650 Lusk Blvd, Suite B203";
-const char * szZipCode = "92021";
-const char * szCountry = "US";
-const char * szProvince = "CA";
-const char * szCity = "San Diego";
-const char * szOrganization = "vr2.3.1-candidate-amino-A130.11-hwonly";
-const char * szCommon = "STB";
-const char * szTelephone = "858-677-7800";
-const char * szChallengePassword = "VODPassword";
-char * szEmail = NULL;
+// Данные сертификата
+const char *szAddress = "6650 Lusk Blvd, Suite B203";
+const char *szZipCode = "92021";
+const char *szCountry = "US";
+const char *szProvince = "CA";
+const char *szCity = "San Diego";
+const char *szOrganization = "vr2.3.1-candidate-amino-A130.11-hwonly";
+const char *szCommon = "STB";
+const char *szTelephone = "858-677-7800";
+const char *szChallengePassword = "VODPassword";
+char *szEmail = NULL;
 
-// Client data
+// Данные клиента
 char api_clientID[13];
 char api_machineID[64];
 
-// Session data
-uchar * session_key = NULL;
-uchar * timestamp = NULL;
-char * ski = NULL;
+// Данные сессии
+uchar *session_key = NULL;
+uchar *timestamp = NULL;
+char *ski = NULL;
 
-// Files used
-char * f_signedcert = NULL;
-char * f_csr = NULL;
-char * f_rsa_private_key = NULL;
-char * f_keyblock = NULL;
-char * f_dir = NULL;
+// Файлы, используемые
+char *f_signedcert = NULL;
+char *f_csr = NULL;
+char *f_rsa_private_key = NULL;
+char *f_keyblock = NULL;
+char *f_dir = NULL;
 
-char* strconcat(const char* str1, const char* str2) {
-  size_t len1 = strlen(str1);
-  size_t len2 = strlen(str2);
-  char* result = malloc(len1 + len2 + 1);
-  if (result == NULL) {
-    LOG(ERROR, "[API] Not enough memory");
-    exit(-1);
-  }
-  memcpy(result, str1, len1);
-  memcpy(result + len1, str2, len2 + 1); // +1 to copy the null-terminating character
-  return result;
+char* strconcat(char* str1, char* str2) {
+    int length = strlen(str1) + strlen(str2) + 1;
+    char* result = malloc(length);
+    if (result == NULL) {
+        LOG(ERROR, "[API] Not enough memory");
+        exit(-1);
+    }
+
+    strncpy(result, str1, strlen(str1)+1);
+    strncat(result, str2, strlen(str2)+1);
+    return result;
 }
 
 /**
@@ -129,99 +129,64 @@ int addHeader(char** msg, int version) {
 }
 
 void set_cache_dir(char* dir) {
-	if (f_dir != NULL && f_dir[0] != 0) {
-		free(f_signedcert);
-		free(f_csr);
-		free(f_rsa_private_key);
-		free(f_keyblock);
-	}
+    if (f_dir != NULL && f_dir[0] != 0) {
+        free(f_signedcert);
+        free(f_csr);
+        free(f_rsa_private_key);
+        free(f_keyblock);
+    }
 
-	f_signedcert = strconcat(dir, "/SignedCert.der");
-	f_csr = strconcat(dir, "/csr");
-	f_rsa_private_key = strconcat(dir, "/priv_key.pem");
-	f_keyblock = strconcat(dir, "/keyblock");
-	f_dir = dir;
+    f_signedcert = strconcat(dir, "/SignedCert.der");
+    f_csr = strconcat(dir, "/csr");
+    f_rsa_private_key = strconcat(dir, "/priv_key.pem");
+    f_keyblock = strconcat(dir, "/keyblock");
+    f_dir = dir;
 }
 
 void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address,
-            unsigned int vks_port, char* company, char* dir, char* amino_mac,
-            char* machine_id, int protocolVersion) {
-	
-        struct stat st = {0};
+               unsigned int vks_port, char* company, char* dir, char* amino_mac,
+               char* machine_id, int protocolVersion) {
+    
+    struct stat st = {0};
 
-	if (vcas_address != 0)
-		str_realloc_copy(&vcasServerAddress, vcas_address);
+    if (vcas_address != 0)
+        str_realloc_copy(&vcasServerAddress, vcas_address);
 
-	if (vks_address != 0)
-		str_realloc_copy(&vksServerAddress, vks_address);
+    if (vks_address != 0)
+        str_realloc_copy(&vksServerAddress, vks_address);
 
-	if (company != 0)
-		str_realloc_copy(&api_company, company);
+    if (company != 0)
+        str_realloc_copy(&api_company, company);
 
-	if (vcas_port > 0)
-		VCAS_Port_SSL = vcas_port;
+    if (vcas_port > 0)
+        VCAS_Port_SSL = vcas_port;
 
-	if (vks_port > 0)
-		VKS_Port_SSL = vks_port;
+    if (vks_port > 0)
+        VKS_Port_SSL = vks_port;
 
-	if (dir != 0)
-		set_cache_dir(dir);
+    if (dir != 0)
+        set_cache_dir(dir);
 
-	if (amino_mac != 0) {
-		memcpy(api_clientID, amino_mac, 13);
-        }
-	
-        if (machine_id != 0) {
-	    memcpy(api_machineID, machine_id, 64);
-        } else if (amino_mac != 0) {
-            memcpy(api_machineID, amino_mac, 13);
-        }
-        
-	if (protocolVersion != 0) {
-            api_msgformat = protocolVersion;
-        }
+    if (amino_mac != 0) {
+        memcpy(api_clientID, amino_mac, 13);
+    }
+    
+    if (machine_id != 0) {
+        memcpy(api_machineID, machine_id, 64);
+    } else if (amino_mac != 0) {
+        memcpy(api_machineID, amino_mac, 13);
+    }
+    
+    if (protocolVersion != 0) {
+        api_msgformat = protocolVersion;
+    }
 
-	if (stat(f_dir, &st) == -1) {
-		LOG(ERROR, "[API] Directory %s doesn't exist", f_dir);
-	} else if (access(f_dir, W_OK) != 0) {
-		LOG(ERROR, "[API] Directory %s isn't writable", f_dir);
-		exit(-1);
-	}
-}
-
-int generate_rsa_pkey() {
-	FILE * fp;
-	RSA * rsa_priv_key;
-	const int kBits = 1024;
-	const int kExp = 3;
-	int keylen;
-	char *pem_key;
-        
-	rsa_priv_key = RSA_generate_key(kBits, kExp, 0, 0);
-
-	/* To get the C-string PEM form: */
-	BIO *bio = BIO_new(BIO_s_mem());
-	PEM_write_bio_RSAPrivateKey(bio, rsa_priv_key, NULL, NULL, 0, NULL, NULL);
-
-	keylen = BIO_pending(bio);
-	pem_key = calloc(keylen + 1, 1); /* Null-terminate */
-	BIO_read(bio, pem_key, keylen);
-
-	fp = fopen(f_rsa_private_key, "w");
-	if (fp) {
-		fwrite(pem_key, keylen, 1, fp);
-		fclose(fp);
-	} else {
-		LOG(ERROR, "[API] RSA key generation failed, could not write key to %s", f_rsa_private_key);
-		return -1;
-	}
-
-	LOG(VERBOSE, "[API] Private key created:%s", pem_key);
-
-	BIO_free_all(bio);
-	free(pem_key);
-        pem_key = NULL;
-	return 0;
+    if (stat(f_dir, &st) == -1) {
+        LOG(ERROR, "[API] Directory %s doesn't exist", f_dir);
+    } else if (access(f_dir, W_OK) != 0) {
+        LOG(ERROR, "[API] Directory %s isn't writable", f_dir);
+        exit(-1);
+    }
 }
 
 int load_rsa_pkey(RSA ** rsa_priv_key) {
@@ -587,72 +552,68 @@ int API_GetEncryptedPassword() {
 	return 0;
 }
 
-int API_GetSingleChannelKey(const char* channel_id) {
-    uchar* signedhash = 0;
-    char* msg = malloc(512);
-    uchar* response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
-    uchar* keyblock;
+// Добавленная функция для получения единственного ключа канала
+int API_GetSingleChannelKey(const char *channel_id) {
+    uchar *signedhash = 0;
+    char *msg = malloc(512);
+    uchar *response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
+    uchar *keyblock;
     int msglen, retlen, plainlen;
     RC4_KEY rc4key;
-    FILE* fp;
-    char* unencryptedAPICompare = malloc(128);
+    FILE *fp;
+    char *unencryptedAPICompare = malloc(128);
 
     if (response_buffer == NULL) {
         LOG(ERROR, "[API] GetSingleChannelKey failed, unable to allocate memory");
         return -1;
     }
 
-    sprintf((char*)unencryptedAPICompare, "%s~%s~%s~",
+    sprintf((char*) unencryptedAPICompare, "%s~%s~%s~",
             api_company, timestamp, api_machineID);
     plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
     free(unencryptedAPICompare);
-
+    
     if (generate_signed_hash(&signedhash) < 0) {
         OPENSSL_free(signedhash);
         return -1;
     }
 
-    sprintf((char*)msg,
-            "%s~%s~%s~%s~GetSingleChannelKey~%s~%s~%s~%s~%s~ ~",
-            api_company, timestamp, api_machineID, api_clientID, api_company, ski,
-            signedhash, api_machineID, channel_id);
+    sprintf((char*) msg,
+            "%s~%s~%s~%s~GetSingleChannelKey~%s~%s~",
+            api_company, timestamp, api_machineID, api_clientID, channel_id, signedhash);
+    
     msglen = addHeader(&msg, api_msgformat);
-    OPENSSL_free(signedhash);
 
-    LOG(VERBOSE, "[API] Requesting single channel key for channel_id %s: %s", channel_id, msg);
+    LOG(VERBOSE, "[API] GetSingleChannelKey: %s", msg);
+
     RC4_set_key(&rc4key, 16, session_key);
     RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
-    retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-                             vksServerAddress, VKS_Port_SSL);
+    retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE, 
+                             vcasServerAddress, VCAS_Port_SSL + 1);
     free(msg);
-    if (retlen < 10) {
+
+    if (retlen < 8) {
         free(response_buffer);
         response_buffer = NULL;
+        OPENSSL_free(signedhash);
         return -1;
     }
 
-    keyblock = response_buffer + 4;
-    retlen -= 4;
-
-    LOG(INFO, "[API] GetSingleChannelKey completed, size: %d", retlen);
-
     RC4_set_key(&rc4key, 16, session_key);
-    RC4(&rc4key, retlen, keyblock, keyblock);
+    RC4(&rc4key, retlen - 4, response_buffer + 4, response_buffer + 4);
+
+    LOG(DEBUG, "[API] Channel Key for %s obtained: %s", channel_id, response_buffer + 8);
 
     fp = fopen(f_keyblock, "w");
     if (fp) {
-        fwrite(keyblock, retlen, 1, fp);
+        fwrite(response_buffer + 8, retlen - 8, 1, fp);
         fclose(fp);
-        free(response_buffer);
-        response_buffer = NULL;
-        return 0;
-    } else {
-        LOG(ERROR, "[API] GetSingleChannelKey failed, could not write keyblock to %s", f_keyblock);
     }
+
     free(response_buffer);
-    response_buffer = NULL;
-    return -1;
+    OPENSSL_free(signedhash);
+    return 0;
 }
 
 int init_vmapi() {
@@ -687,81 +648,74 @@ cleanup:
 	return exit_code;
 }
 
-int load_keyblock(void) {
-    int exit_code = EXIT_FAILURE;
-    char retry_count = 0, res, t = 0;
-    const char* channel_id = NULL;
+int load_keyblock(const char *channel_id) {
+	int exit_code = EXIT_FAILURE;
+	char retry_count = 0, res, t = 0;
 
 retry:
-    // Получение ключа сеанса от сервера
-    while (API_GetSessionKey() != 0) {
-        if (t > 2) {
-            RETURN_ERR("GetSessionKey failed");
-        }
-        sleep(1);
-        t++;
-    }
+	// Получить сессионный ключ от сервера
+	while(API_GetSessionKey() != 0) {
+		if (t > 2) {
+			RETURN_ERR("GetSessionKey failed");
+		}
+		sleep(1);
+		t++;
+	}
+	// Подождать немного
+	usleep(500 * 1000);
 
-    // Задержка для сервера
-    usleep(500 * 1000);
+	// Чтение X509 подписанного сертификата; запросить новый, если он отсутствует или если SKI не удалось получить
+	if (generate_ski_string() < 0) {
+		if (API_GetCertificate() < 0) {
+			RETURN_ERR("Unable to get Signed Certificate");
+		}
+		if (generate_ski_string() < 0) {
+			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
+		}
+		if (API_SaveEncryptedPassword() < 0) {
+			RETURN_ERR("Unable to save encrypted password");
+		}
+	} else {
+		if (API_GetEncryptedPassword() < 0) {
+			RETURN_ERR("Unable to get encrypted password");
+		}
+	}
 
-    // Проверка сертификата X509
-    if (generate_ski_string() < 0) {
-        if (API_GetCertificate() < 0) {
-            RETURN_ERR("Unable to get Signed Certificate");
-        }
-        if (generate_ski_string() < 0) {
-            RETURN_ERR("Got a Signed Certificate but unable to get SKI");
-        }
-        if (API_SaveEncryptedPassword() < 0) {
-            RETURN_ERR("Unable to save encrypted password");
-        }
-    } else {
-        if (API_GetEncryptedPassword() < 0) {
-            RETURN_ERR("Unable to get encrypted password");
-        }
-    }
+	LOG(DEBUG, "[API] Using Subject Key Identifier: %s", ski);
 
-    LOG(DEBUG, "[API] Using Subject Key Identifier: %s", ski);
+	// Подождать немного
+	sleep(1);
 
-    // Дождаться передачи channel_id от внешней системы
-    while (channel_id == NULL) {
-        channel_id = get_channel_id_from_external_system(); // Функция для получения channel_id
-        if (channel_id == NULL) {
-            LOG(INFO, "[API] Waiting for channel_id...");
-            sleep(1); // Подождать немного, если channel_id ещё не доступен
-        }
-    }
+	// Получение ключа для единственного канала
+	if (API_GetSingleChannelKey(channel_id) < 0) {
+		LOG(ERROR, "[API] GetSingleChannelKey failed for channel ID: %s", channel_id);
+		if (retry_count < 2) {
+			retry_count += 1;
+			LOG(INFO, "[API] Will cleanup and retry in 5 seconds... Retry count: %d", retry_count);
+			res = remove(f_signedcert);
+			res += remove(f_rsa_private_key);
+			res += remove(f_csr);
+			if (res == 0) {
+				sleep(5);
+				goto retry;
+			} else {
+				RETURN_ERR("Unable to remove files, please remove manually");
+			}
+		}
+		goto cleanup;
+	}
 
-    // Получение ключа для указанного канала
-    if (API_GetSingleChannelKey(channel_id) < 0) {
-        LOG(ERROR, "[API] GetSingleChannelKey failed");
-        if (retry_count < 2) {
-            retry_count += 1;
-            LOG(INFO, "[API] Cleanup and retry in 5 seconds... Retry count: %d", retry_count);
-            res = remove(f_signedcert);
-            res += remove(f_rsa_private_key);
-            res += remove(f_csr);
-            if (res == 0) {
-                sleep(5);
-                goto retry;
-            } else {
-                RETURN_ERR("Unable to remove files, please remove manually");
-            }
-        }
-        goto cleanup;
-    }
+	exit_code = EXIT_SUCCESS;
 
-    exit_code = EXIT_SUCCESS;
 cleanup:
-    if (session_key) {
-        free(session_key);
-        session_key = NULL;
-    }
-    if (timestamp) {
-        free(timestamp);
-        timestamp = NULL;
-    }
+	if (session_key) {
+		free(session_key);
+		session_key = NULL;
+	}
+	if (timestamp) {
+		free(timestamp);
+		timestamp = NULL;
+	}
 
-    return exit_code;
+	return exit_code;
 }
