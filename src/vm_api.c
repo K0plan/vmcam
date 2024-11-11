@@ -587,63 +587,74 @@ int API_GetEncryptedPassword() {
 	return 0;
 }
 
-int API_GetSingleChannelKey(const char* channelID) {
-	uchar* signedhash = 0;
-	char* msg = malloc(512);
-	uchar* response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
-	int msglen, retlen, plainlen;
-	RC4_KEY rc4key;
-	char* unencryptedAPICompare = malloc(128);
+int API_GetSingleChannelKey(const char* channel_id) {
+    uchar* signedhash = 0;
+    char* msg = malloc(512);
+    uchar* response_buffer = calloc(GETKEYS_BUFFSIZE, 1);
+    uchar* keyblock;
+    int msglen, retlen, plainlen;
+    RC4_KEY rc4key;
+    FILE* fp;
+    char* unencryptedAPICompare = malloc(128);
 
-	if (response_buffer == NULL) {
-		LOG(ERROR, "[API] GetSingleChannelKey failed, unable to allocate memory");
-		return -1;
-	}
+    if (response_buffer == NULL) {
+        LOG(ERROR, "[API] GetSingleChannelKey failed, unable to allocate memory");
+        return -1;
+    }
 
-	sprintf((char*) unencryptedAPICompare, "%s~%s~%s~",
-			api_company, timestamp, api_machineID);
-	plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
-	free(unencryptedAPICompare);
+    sprintf((char*)unencryptedAPICompare, "%s~%s~%s~",
+            api_company, timestamp, api_machineID);
+    plainlen = addHeader(&unencryptedAPICompare, api_msgformat);
+    free(unencryptedAPICompare);
 
-	// Генерация подписанного хэша
-	if (generate_signed_hash(&signedhash) < 0) {
-		OPENSSL_free(signedhash);
-		return -1;
-	}
+    if (generate_signed_hash(&signedhash) < 0) {
+        OPENSSL_free(signedhash);
+        return -1;
+    }
 
-	// Формирование сообщения с ID конкретного канала
-	sprintf((char*)msg,
-		"%s~%s~%s~%s~GetSingleChannelKey~%s~%s~%s~%s~%s~",
-		api_company, timestamp, api_machineID, api_clientID, api_company, ski,
-		signedhash, api_machineID, channelID);
-	msglen = addHeader(&msg, api_msgformat);
+    sprintf((char*)msg,
+            "%s~%s~%s~%s~GetSingleChannelKey~%s~%s~%s~%s~%s~ ~",
+            api_company, timestamp, api_machineID, api_clientID, api_company, ski,
+            signedhash, api_machineID, channel_id);
+    msglen = addHeader(&msg, api_msgformat);
+    OPENSSL_free(signedhash);
 
-	LOG(VERBOSE, "[API] Requesting Single Channel Key for channel ID: %s", channelID);
+    LOG(VERBOSE, "[API] Requesting single channel key for channel_id %s: %s", channel_id, msg);
+    RC4_set_key(&rc4key, 16, session_key);
+    RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
 
-	RC4_set_key(&rc4key, 16, session_key);
-	RC4(&rc4key, msglen - plainlen, msg + plainlen, msg + plainlen);
+    retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
+                             vksServerAddress, VKS_Port_SSL);
+    free(msg);
+    if (retlen < 10) {
+        free(response_buffer);
+        response_buffer = NULL;
+        return -1;
+    }
 
-	// Отправка запроса
-	retlen = tcp_client_send(msg, msglen, response_buffer, GETKEYS_BUFFSIZE,
-	                         vcasServerAddress, VCAS_Port_SSL + 1);
-	free(msg);
+    keyblock = response_buffer + 4;
+    retlen -= 4;
 
-	if (retlen < 8) {
-		free(response_buffer);
-		OPENSSL_free(signedhash);
-		LOG(ERROR, "[API] GetSingleChannelKey failed, invalid response size");
-		return -1;
-	}
+    LOG(INFO, "[API] GetSingleChannelKey completed, size: %d", retlen);
 
-	RC4_set_key(&rc4key, 16, session_key);
-	RC4(&rc4key, retlen - 4, response_buffer + 4, response_buffer + 4);
+    RC4_set_key(&rc4key, 16, session_key);
+    RC4(&rc4key, retlen, keyblock, keyblock);
 
-	LOG(DEBUG, "[API] GetSingleChannelKey Response: %s", response_buffer + 8);
-
-	free(response_buffer);
-	OPENSSL_free(signedhash);
-	return 0;
+    fp = fopen(f_keyblock, "w");
+    if (fp) {
+        fwrite(keyblock, retlen, 1, fp);
+        fclose(fp);
+        free(response_buffer);
+        response_buffer = NULL;
+        return 0;
+    } else {
+        LOG(ERROR, "[API] GetSingleChannelKey failed, could not write keyblock to %s", f_keyblock);
+    }
+    free(response_buffer);
+    response_buffer = NULL;
+    return -1;
 }
+
 int init_vmapi() {
 	// Init SSL Client
 	ssl_client_init();
@@ -677,72 +688,80 @@ cleanup:
 }
 
 int load_keyblock(void) {
-	int exit_code = EXIT_FAILURE;
-	char retry_count = 0, res, t = 0;
+    int exit_code = EXIT_FAILURE;
+    char retry_count = 0, res, t = 0;
+    const char* channel_id = NULL;
 
 retry:
-	// Get Session key from server
-	while(API_GetSessionKey() != 0) {
-		if (t > 2) {
-			RETURN_ERR("GetSessionKey failed");
-		}
-		sleep(1);
-		t++;
-	}
-	// Give the server some time
-	usleep(500 * 1000);
+    // Получение ключа сеанса от сервера
+    while (API_GetSessionKey() != 0) {
+        if (t > 2) {
+            RETURN_ERR("GetSessionKey failed");
+        }
+        sleep(1);
+        t++;
+    }
 
-	// Read X509 Signed Certificate, if not present or when SKI could not be retrieved request new one
-	if (generate_ski_string() < 0) {
-		if (API_GetCertificate() < 0) {
-			RETURN_ERR("Unable to get Signed Certificate");
-		}
-		if (generate_ski_string() < 0) {
-			RETURN_ERR("Got a Signed Certificate but unable to get SKI");
-		}
-		if (API_SaveEncryptedPassword() < 0) {
-			RETURN_ERR("Unable to save encrypted password");
-		}
-	} else {
-		if (API_GetEncryptedPassword() < 0) {
-			RETURN_ERR("Unable to get encrypted password");
-		}
-	}
+    // Задержка для сервера
+    usleep(500 * 1000);
 
-	LOG(DEBUG, "[API] Using Subject Key Identifier: %s", ski);
+    // Проверка сертификата X509
+    if (generate_ski_string() < 0) {
+        if (API_GetCertificate() < 0) {
+            RETURN_ERR("Unable to get Signed Certificate");
+        }
+        if (generate_ski_string() < 0) {
+            RETURN_ERR("Got a Signed Certificate but unable to get SKI");
+        }
+        if (API_SaveEncryptedPassword() < 0) {
+            RETURN_ERR("Unable to save encrypted password");
+        }
+    } else {
+        if (API_GetEncryptedPassword() < 0) {
+            RETURN_ERR("Unable to get encrypted password");
+        }
+    }
 
-	// Give the server some time
-	sleep(1);
+    LOG(DEBUG, "[API] Using Subject Key Identifier: %s", ski);
 
-	// Get the Master Keys
-	if(API_GetSingleChannelKey(9364) < 0) {
-		LOG(ERROR, "[API] GetSingleChannelKey failed");
-		if(retry_count < 2){
-			retry_count += 1;
-			LOG(INFO, "[API] Will cleanup and retry in 5 seconds... Retry count: %d", retry_count);
-			res = remove(f_signedcert);
-			res += remove(f_rsa_private_key);
-			res += remove(f_csr);
-			if(res == 0) {
-				sleep(5);
-				goto retry;
-			} else {
-				RETURN_ERR("Unable to remove files, please remove manually");
-			}
-		}
-		goto cleanup;
-	}
+    // Дождаться передачи channel_id от внешней системы
+    while (channel_id == NULL) {
+        channel_id = get_channel_id_from_external_system(); // Функция для получения channel_id
+        if (channel_id == NULL) {
+            LOG(INFO, "[API] Waiting for channel_id...");
+            sleep(1); // Подождать немного, если channel_id ещё не доступен
+        }
+    }
 
-	exit_code = EXIT_SUCCESS;
+    // Получение ключа для указанного канала
+    if (API_GetSingleChannelKey(channel_id) < 0) {
+        LOG(ERROR, "[API] GetSingleChannelKey failed");
+        if (retry_count < 2) {
+            retry_count += 1;
+            LOG(INFO, "[API] Cleanup and retry in 5 seconds... Retry count: %d", retry_count);
+            res = remove(f_signedcert);
+            res += remove(f_rsa_private_key);
+            res += remove(f_csr);
+            if (res == 0) {
+                sleep(5);
+                goto retry;
+            } else {
+                RETURN_ERR("Unable to remove files, please remove manually");
+            }
+        }
+        goto cleanup;
+    }
+
+    exit_code = EXIT_SUCCESS;
 cleanup:
-	if (session_key) {
-		free(session_key);
-                session_key = NULL;
-	}
-	if (timestamp) {
-		free(timestamp);
-                timestamp = NULL;
-	}
+    if (session_key) {
+        free(session_key);
+        session_key = NULL;
+    }
+    if (timestamp) {
+        free(timestamp);
+        timestamp = NULL;
+    }
 
-	return exit_code;
+    return exit_code;
 }
