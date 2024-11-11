@@ -23,4 +23,4 @@ void vm_config(char* vcas_address, unsigned int vcas_port, char* vks_address,
         unsigned int vks_port, char* company, char* dir, char* amino_mac,
         char* machine_id, int protocolVersion);
 int init_vmapi();
-int load_keyblock(void);
+int load_keyblock(const char *channel_id);
